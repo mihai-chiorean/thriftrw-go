@@ -53,8 +53,9 @@ func main() {
 			"the Thrift files relative to this directory. By default, this is "+
 			"the deepest common ancestor of the Thrift files.")
 
-	var yarpc bool
-	flag.BoolVar(&yarpc, "yarpc", false, "Generate code for YARPC.")
+	var pluginsStr string
+	flag.StringVar(&pluginsStr, "plugins", "", "Comma separated list of plugins to use. "+
+		"Each plugin specified must have a thriftrw-plugin-$name file available on $PATH")
 
 	var noRecurse bool
 	flag.BoolVar(&noRecurse, "no-recurse", false,
@@ -109,12 +110,26 @@ func main() {
 		}
 	}
 
+	pluginNames := strings.Split(pluginsStr, ",")
+	plugins := make([]gen.Plug, 0, len(pluginNames))
+	for _, name := range pluginNames {
+		if len(name) == 0 {
+			continue
+		}
+
+		p, err := gen.NewPlugin(name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		plugins = append(plugins, p)
+	}
+
 	opts := gen.Options{
 		OutputDir:     outputDir,
 		PackagePrefix: packagePrefix,
 		ThriftRoot:    thriftRoot,
 		NoRecurse:     noRecurse,
-		YARPC:         yarpc,
+		Plugins:       plugins,
 	}
 
 	if err := gen.Generate(module, &opts); err != nil {

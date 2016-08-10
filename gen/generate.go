@@ -30,6 +30,8 @@ import (
 	"strings"
 
 	"github.com/thriftrw/thriftrw-go/compile"
+	"github.com/thriftrw/thriftrw-go/plugin/api"
+	"github.com/thriftrw/thriftrw-go/ptr"
 )
 
 // Options controls how code gets generated.
@@ -50,12 +52,12 @@ type Options struct {
 	// This must be an absolute path.
 	ThriftRoot string
 
-	// Whether we should generate code for YARPC.
-	YARPC bool
-
 	// NoRecurse determines whether code should be generated for included Thrift
 	// files as well. If true, code gets generated only for the first module.
 	NoRecurse bool
+
+	// List of plugins
+	Plugins []Plug
 }
 
 // Generate generates code based on the given options.
@@ -75,6 +77,27 @@ func Generate(m *compile.Module, o *Options) error {
 	importer := thriftPackageImporter{
 		ImportPrefix: o.PackagePrefix,
 		ThriftRoot:   o.ThriftRoot,
+	}
+
+	if len(o.Plugins) > 0 {
+		plug := multiPlug(o.Plugins)
+		if err := plug.Open(); err != nil {
+			return err
+		}
+		defer plug.Close()
+
+		req, err := buildGenerateRequest(importer, m)
+		if err != nil {
+			return err
+		}
+
+		res, err := plug.Generate(req)
+		if err != nil {
+			return err
+		}
+
+		// TODO(abg): generate files
+		fmt.Println("Generating", res)
 	}
 
 	if o.NoRecurse {
@@ -215,20 +238,6 @@ func generateModule(m *compile.Module, i thriftPackageImporter, o *Options) erro
 				filename := filepath.Join("service", packageName, name)
 				files[filename] = buff
 			}
-
-			if o.YARPC {
-				yarpcFiles, err := YARPC(i, service)
-				if err != nil {
-					return fmt.Errorf(
-						"could not generate YARPC code for service %q: %v",
-						serviceName, err)
-				}
-
-				for name, buff := range yarpcFiles {
-					filename := filepath.Join("yarpc", name)
-					files[filename] = buff
-				}
-			}
 		}
 	}
 
@@ -245,4 +254,284 @@ func generateModule(m *compile.Module, i thriftPackageImporter, o *Options) erro
 		}
 	}
 	return nil
+}
+
+func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.GenerateRequest, error) {
+	type key struct{ ThriftPath, ServiceName string }
+
+	nextID := int32(1)
+	serviceIds := make(map[key]int32)
+	services := make(map[int32]*api.Service)
+
+	var buildService func(spec *compile.ServiceSpec) (int32, error)
+	buildService = func(spec *compile.ServiceSpec) (int32, error) {
+		var parentID *int32
+		if spec.Parent != nil {
+			parent, err := buildService(spec.Parent)
+			if err != nil {
+				return 0, err
+			}
+			parentID = &parent
+		}
+
+		k := key{ThriftPath: spec.ThriftFile(), ServiceName: spec.Name}
+		if id, ok := serviceIds[k]; ok {
+			return id, nil
+		}
+
+		id := nextID
+		nextID++
+
+		importPath, err := i.ServicePackage(spec.ThriftFile(), spec.Name)
+		if err != nil {
+			return 0, err
+		}
+
+		dir, err := i.RelativePackage(spec.ThriftFile())
+		if err != nil {
+			return 0, err
+		}
+
+		functions, err := buildFunctions(i, spec.Functions)
+		if err != nil {
+			return 0, err
+		}
+
+		// TODO make this part of generateModule somehow
+		services[id] = &api.Service{
+			Name:      spec.Name,
+			Package:   importPath,
+			Directory: filepath.Join(dir, "service", filepath.Base(importPath)),
+			ParentId:  parentID,
+			Functions: functions,
+		}
+		serviceIds[k] = id
+		return id, nil
+	}
+
+	for _, spec := range m.Services {
+		if _, err := buildService(spec); err != nil {
+			return nil, fmt.Errorf("failed to compile service %q: %v", spec.Name, err)
+		}
+	}
+
+	return &api.GenerateRequest{Services: services}, nil
+}
+
+func buildFunctions(i thriftPackageImporter, fs map[string]*compile.FunctionSpec) ([]*api.Function, error) {
+	functions := make([]*api.Function, 0, len(fs))
+	for _, functionName := range sortStringKeys(fs) {
+		spec := fs[functionName]
+
+		args, err := buildArguments(i, compile.FieldGroup(spec.ArgsSpec))
+		if err != nil {
+			return nil, err
+		}
+		function := &api.Function{
+			Name:      spec.Name,
+			Arguments: args,
+		}
+
+		if spec.ResultSpec != nil {
+			var err error
+			result := spec.ResultSpec
+			if result.ReturnType != nil {
+				function.ReturnType, err = buildType(i, result.ReturnType, true)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if len(result.Exceptions) > 0 {
+				function.Exceptions, err = buildArguments(i, result.Exceptions)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		functions = append(functions, function)
+	}
+	return functions, nil
+}
+
+func buildArguments(i thriftPackageImporter, fs compile.FieldGroup) ([]*api.Argument, error) {
+	args := make([]*api.Argument, 0, len(fs))
+	for _, f := range fs {
+		t, err := buildType(i, f.Type, f.Required)
+		if err != nil {
+			return nil, err
+		}
+
+		args = append(args, &api.Argument{
+			Name: f.Name, // TODO goCase
+			Type: t,
+		})
+	}
+	return args, nil
+}
+
+func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*api.Type, error) {
+	simpleType := func(t api.SimpleType) *api.SimpleType {
+		return &t
+	}
+
+	switch spec {
+	case compile.BoolSpec:
+		return &api.Type{
+			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeBool)},
+			Pointer: ptr.Bool(!required),
+		}, nil
+	case compile.I8Spec:
+		return &api.Type{
+			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeInt8)},
+			Pointer: ptr.Bool(!required),
+		}, nil
+	case compile.I16Spec:
+		return &api.Type{
+			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeInt16)},
+			Pointer: ptr.Bool(!required),
+		}, nil
+	case compile.I32Spec:
+		return &api.Type{
+			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeInt32)},
+			Pointer: ptr.Bool(!required),
+		}, nil
+	case compile.I64Spec:
+		return &api.Type{
+			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeInt64)},
+			Pointer: ptr.Bool(!required),
+		}, nil
+	case compile.DoubleSpec:
+		return &api.Type{
+			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeFloat64)},
+			Pointer: ptr.Bool(!required),
+		}, nil
+	case compile.StringSpec:
+		return &api.Type{
+			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeString)},
+			Pointer: ptr.Bool(!required),
+		}, nil
+	case compile.BinarySpec:
+		return &api.Type{
+			Info: &api.TypeInfo{
+				SliceType: &api.SliceType{
+					ValueType: &api.Type{Info: &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeByte)}},
+				},
+			},
+		}, nil
+	default:
+		// Not a primitive type. Try checking if it's a container.
+	}
+
+	switch s := spec.(type) {
+	case *compile.MapSpec:
+		k, err := buildType(i, s.KeySpec, true)
+		if err != nil {
+			return nil, err
+		}
+
+		v, err := buildType(i, s.ValueSpec, true)
+		if err != nil {
+			return nil, err
+		}
+
+		if !isHashable(s.KeySpec) {
+			return &api.Type{
+				Info: &api.TypeInfo{
+					KeyValueSliceType: &api.KeyValueSliceType{KeyType: k, ValueType: v},
+				},
+			}, nil
+		}
+
+		return &api.Type{
+			Info: &api.TypeInfo{
+				MapType: &api.MapType{KeyType: k, ValueType: v},
+			},
+		}, nil
+
+	case *compile.ListSpec:
+		v, err := buildType(i, s.ValueSpec, true)
+		if err != nil {
+			return nil, err
+		}
+		return &api.Type{
+			Info: &api.TypeInfo{
+				SliceType: &api.SliceType{ValueType: v},
+			},
+		}, nil
+
+	case *compile.SetSpec:
+		v, err := buildType(i, s.ValueSpec, true)
+		if err != nil {
+			return nil, err
+		}
+
+		if !isHashable(s.ValueSpec) {
+			return &api.Type{
+				Info: &api.TypeInfo{
+					SliceType: &api.SliceType{ValueType: v},
+				},
+			}, nil
+		}
+		return &api.Type{
+			Info: &api.TypeInfo{
+				MapType: &api.MapType{
+					KeyType: v,
+					ValueType: &api.Type{
+						Info: &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeStructEmpty)},
+					},
+				},
+			},
+		}, nil
+
+	case *compile.EnumSpec:
+		importPath, err := i.Package(s.ThriftFile())
+		if err != nil {
+			return nil, err
+		}
+
+		return &api.Type{
+			Info: &api.TypeInfo{
+				ReferenceType: &api.TypeReference{
+					Name:    s.Name,
+					Package: importPath,
+				},
+			},
+			Pointer: ptr.Bool(!required),
+		}, nil
+
+	case *compile.StructSpec:
+		importPath, err := i.Package(s.ThriftFile())
+		if err != nil {
+			return nil, err
+		}
+
+		return &api.Type{
+			Info: &api.TypeInfo{
+				ReferenceType: &api.TypeReference{
+					Name:    s.Name,
+					Package: importPath,
+				},
+			},
+			Pointer: ptr.Bool(true),
+		}, nil
+
+	case *compile.TypedefSpec:
+		importPath, err := i.Package(s.ThriftFile())
+		if err != nil {
+			return nil, err
+		}
+
+		return &api.Type{
+			Info: &api.TypeInfo{
+				ReferenceType: &api.TypeReference{
+					Name:    s.Name,
+					Package: importPath,
+				},
+			},
+			Pointer: ptr.Bool(!required && !isReferenceType(spec)),
+		}, nil
+	default:
+		panic(fmt.Sprintf("Unknown type (%T) %v", spec, spec))
+	}
 }

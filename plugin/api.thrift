@@ -9,11 +9,11 @@ struct TypeReference {
 enum SimpleType {
     BOOL,         // bool
     BYTE,         // byte
-    INT7,         // int8
-    INT15,        // int16
-    INT31,        // int32
-    INT63,        // int64
-    FLOAT63,      // float64
+    INT8,         // int8
+    INT16,        // int16
+    INT32,        // int32
+    INT64,        // int64
+    FLOAT64,      // float64
     STRING,       // string
     STRUCT_EMPTY, // struct{}
 }
@@ -35,7 +35,7 @@ struct KeyValueSliceType {
 union TypeInfo {
     1: SimpleType simpleType
     2: SliceType sliceType
-    3: KeyValueSliceType keyValueSlice
+    3: KeyValueSliceType keyValueSliceType
     4: MapType mapType
     5: TypeReference referenceType
 }
@@ -46,6 +46,8 @@ struct Type {
      * Whether this type should be referenced with a pointer.
      */
     2: optional bool pointer = false
+    // TODO(abg): Combine Type and TypeInfo into Type, with a new union field:
+    //  6: Type pointer
 }
 
 struct Argument {
@@ -57,6 +59,7 @@ struct Function {
     1: required string name
     2: required list<Argument> arguments
     3: optional Type returnType
+    4: optional list<Argument> exceptions
 }
 
 struct Service {
@@ -100,7 +103,7 @@ struct GenerateResponse {
      *
      * Go files in the output WILL be reformatted by ThriftRW.
      */
-    1: required map<string, binary> files
+    1: optional map<string, binary> files
 }
 
 struct HandshakeRequest {
