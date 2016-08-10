@@ -117,6 +117,7 @@ type Function struct {
 	Name       string      `json:"name"`
 	Arguments  []*Argument `json:"arguments"`
 	ReturnType *Type       `json:"returnType,omitempty"`
+	Exceptions []*Argument `json:"exceptions"`
 }
 
 type _List_Argument_ValueList []*Argument
@@ -148,7 +149,7 @@ func (_List_Argument_ValueList) Close() {
 
 func (v *Function) ToWire() (wire.Value, error) {
 	var (
-		fields [3]wire.Field
+		fields [4]wire.Field
 		i      int = 0
 		w      wire.Value
 		err    error
@@ -174,6 +175,14 @@ func (v *Function) ToWire() (wire.Value, error) {
 			return w, err
 		}
 		fields[i] = wire.Field{ID: 3, Value: w}
+		i++
+	}
+	if v.Exceptions != nil {
+		w, err = wire.NewValueList(_List_Argument_ValueList(v.Exceptions)), error(nil)
+		if err != nil {
+			return w, err
+		}
+		fields[i] = wire.Field{ID: 4, Value: w}
 		i++
 	}
 	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
@@ -231,6 +240,13 @@ func (v *Function) FromWire(w wire.Value) error {
 					return err
 				}
 			}
+		case 4:
+			if field.Value.Type() == wire.TList {
+				v.Exceptions, err = _List_Argument_Read(field.Value.GetList())
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 	if !nameIsSet {
@@ -243,7 +259,7 @@ func (v *Function) FromWire(w wire.Value) error {
 }
 
 func (v *Function) String() string {
-	var fields [3]string
+	var fields [4]string
 	i := 0
 	fields[i] = fmt.Sprintf("Name: %v", v.Name)
 	i++
@@ -251,6 +267,10 @@ func (v *Function) String() string {
 	i++
 	if v.ReturnType != nil {
 		fields[i] = fmt.Sprintf("ReturnType: %v", v.ReturnType)
+		i++
+	}
+	if v.Exceptions != nil {
+		fields[i] = fmt.Sprintf("Exceptions: %v", v.Exceptions)
 		i++
 	}
 	return fmt.Sprintf("Function{%v}", strings.Join(fields[:i], ", "))
@@ -419,15 +439,14 @@ func (v *GenerateResponse) ToWire() (wire.Value, error) {
 		w      wire.Value
 		err    error
 	)
-	if v.Files == nil {
-		return w, errors.New("field Files of GenerateResponse is required")
+	if v.Files != nil {
+		w, err = wire.NewValueMap(_Map_String_Binary_MapItemList(v.Files)), error(nil)
+		if err != nil {
+			return w, err
+		}
+		fields[i] = wire.Field{ID: 1, Value: w}
+		i++
 	}
-	w, err = wire.NewValueMap(_Map_String_Binary_MapItemList(v.Files)), error(nil)
-	if err != nil {
-		return w, err
-	}
-	fields[i] = wire.Field{ID: 1, Value: w}
-	i++
 	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
 }
 
@@ -457,7 +476,6 @@ func _Map_String_Binary_Read(m wire.MapItemList) (map[string][]byte, error) {
 
 func (v *GenerateResponse) FromWire(w wire.Value) error {
 	var err error
-	filesIsSet := false
 	for _, field := range w.GetStruct().Fields {
 		switch field.ID {
 		case 1:
@@ -466,12 +484,8 @@ func (v *GenerateResponse) FromWire(w wire.Value) error {
 				if err != nil {
 					return err
 				}
-				filesIsSet = true
 			}
 		}
-	}
-	if !filesIsSet {
-		return errors.New("field Files of GenerateResponse is required")
 	}
 	return nil
 }
@@ -479,8 +493,10 @@ func (v *GenerateResponse) FromWire(w wire.Value) error {
 func (v *GenerateResponse) String() string {
 	var fields [1]string
 	i := 0
-	fields[i] = fmt.Sprintf("Files: %v", v.Files)
-	i++
+	if v.Files != nil {
+		fields[i] = fmt.Sprintf("Files: %v", v.Files)
+		i++
+	}
 	return fmt.Sprintf("GenerateResponse{%v}", strings.Join(fields[:i], ", "))
 }
 
@@ -1104,11 +1120,11 @@ type SimpleType int32
 const (
 	SimpleTypeBool        SimpleType = 0
 	SimpleTypeByte        SimpleType = 1
-	SimpleTypeInt7        SimpleType = 2
-	SimpleTypeInt15       SimpleType = 3
-	SimpleTypeInt31       SimpleType = 4
-	SimpleTypeInt63       SimpleType = 5
-	SimpleTypeFloat63     SimpleType = 6
+	SimpleTypeInt8        SimpleType = 2
+	SimpleTypeInt16       SimpleType = 3
+	SimpleTypeInt32       SimpleType = 4
+	SimpleTypeInt64       SimpleType = 5
+	SimpleTypeFloat64     SimpleType = 6
 	SimpleTypeString      SimpleType = 7
 	SimpleTypeStructEmpty SimpleType = 8
 )
@@ -1130,15 +1146,15 @@ func (v SimpleType) String() string {
 	case 1:
 		return "Byte"
 	case 2:
-		return "Int7"
+		return "Int8"
 	case 3:
-		return "Int15"
+		return "Int16"
 	case 4:
-		return "Int31"
+		return "Int32"
 	case 5:
-		return "Int63"
+		return "Int64"
 	case 6:
-		return "Float63"
+		return "Float64"
 	case 7:
 		return "String"
 	case 8:
@@ -1290,11 +1306,11 @@ func (v *Type) String() string {
 }
 
 type TypeInfo struct {
-	SimpleType    *SimpleType        `json:"simpleType,omitempty"`
-	SliceType     *SliceType         `json:"sliceType,omitempty"`
-	KeyValueSlice *KeyValueSliceType `json:"keyValueSlice,omitempty"`
-	MapType       *MapType           `json:"mapType,omitempty"`
-	ReferenceType *TypeReference     `json:"referenceType,omitempty"`
+	SimpleType        *SimpleType        `json:"simpleType,omitempty"`
+	SliceType         *SliceType         `json:"sliceType,omitempty"`
+	KeyValueSliceType *KeyValueSliceType `json:"keyValueSliceType,omitempty"`
+	MapType           *MapType           `json:"mapType,omitempty"`
+	ReferenceType     *TypeReference     `json:"referenceType,omitempty"`
 }
 
 func (v *TypeInfo) ToWire() (wire.Value, error) {
@@ -1320,8 +1336,8 @@ func (v *TypeInfo) ToWire() (wire.Value, error) {
 		fields[i] = wire.Field{ID: 2, Value: w}
 		i++
 	}
-	if v.KeyValueSlice != nil {
-		w, err = v.KeyValueSlice.ToWire()
+	if v.KeyValueSliceType != nil {
+		w, err = v.KeyValueSliceType.ToWire()
 		if err != nil {
 			return w, err
 		}
@@ -1402,7 +1418,7 @@ func (v *TypeInfo) FromWire(w wire.Value) error {
 			}
 		case 3:
 			if field.Value.Type() == wire.TStruct {
-				v.KeyValueSlice, err = _KeyValueSliceType_Read(field.Value)
+				v.KeyValueSliceType, err = _KeyValueSliceType_Read(field.Value)
 				if err != nil {
 					return err
 				}
@@ -1430,7 +1446,7 @@ func (v *TypeInfo) FromWire(w wire.Value) error {
 	if v.SliceType != nil {
 		count++
 	}
-	if v.KeyValueSlice != nil {
+	if v.KeyValueSliceType != nil {
 		count++
 	}
 	if v.MapType != nil {
@@ -1456,8 +1472,8 @@ func (v *TypeInfo) String() string {
 		fields[i] = fmt.Sprintf("SliceType: %v", v.SliceType)
 		i++
 	}
-	if v.KeyValueSlice != nil {
-		fields[i] = fmt.Sprintf("KeyValueSlice: %v", v.KeyValueSlice)
+	if v.KeyValueSliceType != nil {
+		fields[i] = fmt.Sprintf("KeyValueSliceType: %v", v.KeyValueSliceType)
 		i++
 	}
 	if v.MapType != nil {

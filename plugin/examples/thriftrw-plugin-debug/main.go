@@ -18,13 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// Package plugin defines the plugin API for writing thriftrw plugins.
-//
-// Plugins take the form of an executable which runs the Main function.
-//
-// 	func main() {
-// 		plugin.Main(plugin.Plugin{
-// 			// ...
-// 		})
-// 	}
-package plugin
+// This provides a very simple plugin that simply prints the requests it
+// receives to stderr.
+
+package main
+
+import (
+	"log"
+
+	"github.com/thriftrw/thriftrw-go/plugin"
+	"github.com/thriftrw/thriftrw-go/plugin/api"
+)
+
+func main() {
+	plugin.Main(&plugin.Plugin{Name: "debug", Generator: generator{}})
+}
+
+type generator struct{}
+
+func (generator) Generate(req *api.GenerateRequest) (*api.GenerateResponse, error) {
+	log.Print("received: ", req)
+	return &api.GenerateResponse{}, nil
+}

@@ -356,6 +356,8 @@ func (g *generator) declare(ignoreConflicts bool, s string, data interface{}, op
 		return fmt.Errorf("could not parse generated code: %v:\n%s", err, bs)
 	}
 
+	// TODO(abg): Automatically remove unused imports
+
 	for _, decl := range f.Decls {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
