@@ -31,7 +31,6 @@ import (
 
 	"github.com/thriftrw/thriftrw-go/compile"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
-	"github.com/thriftrw/thriftrw-go/ptr"
 )
 
 // Options controls how code gets generated.
@@ -370,57 +369,39 @@ func buildArguments(i thriftPackageImporter, fs compile.FieldGroup) ([]*api.Argu
 	return args, nil
 }
 
-func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*api.Type, error) {
-	simpleType := func(t api.SimpleType) *api.SimpleType {
-		return &t
-	}
+func simpleType(t api.SimpleType) *api.SimpleType {
+	return &t
+}
 
+func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*api.Type, error) {
+	var t *api.Type
 	switch spec {
 	case compile.BoolSpec:
-		return &api.Type{
-			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeBool)},
-			Pointer: ptr.Bool(!required),
-		}, nil
+		t = &api.Type{SimpleType: simpleType(api.SimpleTypeBool)}
 	case compile.I8Spec:
-		return &api.Type{
-			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeInt8)},
-			Pointer: ptr.Bool(!required),
-		}, nil
+		t = &api.Type{SimpleType: simpleType(api.SimpleTypeInt8)}
 	case compile.I16Spec:
-		return &api.Type{
-			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeInt16)},
-			Pointer: ptr.Bool(!required),
-		}, nil
+		t = &api.Type{SimpleType: simpleType(api.SimpleTypeInt16)}
 	case compile.I32Spec:
-		return &api.Type{
-			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeInt32)},
-			Pointer: ptr.Bool(!required),
-		}, nil
+		t = &api.Type{SimpleType: simpleType(api.SimpleTypeInt32)}
 	case compile.I64Spec:
-		return &api.Type{
-			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeInt64)},
-			Pointer: ptr.Bool(!required),
-		}, nil
+		t = &api.Type{SimpleType: simpleType(api.SimpleTypeInt64)}
 	case compile.DoubleSpec:
-		return &api.Type{
-			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeFloat64)},
-			Pointer: ptr.Bool(!required),
-		}, nil
+		t = &api.Type{SimpleType: simpleType(api.SimpleTypeFloat64)}
 	case compile.StringSpec:
-		return &api.Type{
-			Info:    &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeString)},
-			Pointer: ptr.Bool(!required),
-		}, nil
+		t = &api.Type{SimpleType: simpleType(api.SimpleTypeString)}
 	case compile.BinarySpec:
-		return &api.Type{
-			Info: &api.TypeInfo{
-				SliceType: &api.SliceType{
-					ValueType: &api.Type{Info: &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeByte)}},
-				},
-			},
-		}, nil
+		// Don't need to wrap into a ptr
+		return &api.Type{SliceType: &api.Type{SimpleType: simpleType(api.SimpleTypeByte)}}, nil
 	default:
 		// Not a primitive type. Try checking if it's a container.
+	}
+
+	if t != nil {
+		if !required {
+			t = &api.Type{PointerType: t}
+		}
+		return t, nil
 	}
 
 	switch s := spec.(type) {
@@ -436,29 +417,18 @@ func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*
 		}
 
 		if !isHashable(s.KeySpec) {
-			return &api.Type{
-				Info: &api.TypeInfo{
-					KeyValueSliceType: &api.KeyValueSliceType{KeyType: k, ValueType: v},
-				},
-			}, nil
+			return &api.Type{KeyValueSliceType: &api.TypePair{Left: k, Right: v}}, nil
 		}
 
-		return &api.Type{
-			Info: &api.TypeInfo{
-				MapType: &api.MapType{KeyType: k, ValueType: v},
-			},
-		}, nil
+		return &api.Type{MapType: &api.TypePair{Left: k, Right: v}}, nil
 
 	case *compile.ListSpec:
 		v, err := buildType(i, s.ValueSpec, true)
 		if err != nil {
 			return nil, err
 		}
-		return &api.Type{
-			Info: &api.TypeInfo{
-				SliceType: &api.SliceType{ValueType: v},
-			},
-		}, nil
+
+		return &api.Type{SliceType: v}, nil
 
 	case *compile.SetSpec:
 		v, err := buildType(i, s.ValueSpec, true)
@@ -467,22 +437,13 @@ func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*
 		}
 
 		if !isHashable(s.ValueSpec) {
-			return &api.Type{
-				Info: &api.TypeInfo{
-					SliceType: &api.SliceType{ValueType: v},
-				},
-			}, nil
+			return &api.Type{SliceType: v}, nil
 		}
-		return &api.Type{
-			Info: &api.TypeInfo{
-				MapType: &api.MapType{
-					KeyType: v,
-					ValueType: &api.Type{
-						Info: &api.TypeInfo{SimpleType: simpleType(api.SimpleTypeStructEmpty)},
-					},
-				},
-			},
-		}, nil
+
+		return &api.Type{MapType: &api.TypePair{
+			Left:  v,
+			Right: &api.Type{SimpleType: simpleType(api.SimpleTypeStructEmpty)},
+		}}, nil
 
 	case *compile.EnumSpec:
 		importPath, err := i.Package(s.ThriftFile())
@@ -490,15 +451,16 @@ func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*
 			return nil, err
 		}
 
-		return &api.Type{
-			Info: &api.TypeInfo{
-				ReferenceType: &api.TypeReference{
-					Name:    s.Name,
-					Package: importPath,
-				},
+		t = &api.Type{
+			ReferenceType: &api.TypeReference{
+				Name:    s.Name,
+				Package: importPath,
 			},
-			Pointer: ptr.Bool(!required),
-		}, nil
+		}
+		if !required {
+			t = &api.Type{PointerType: t}
+		}
+		return t, nil
 
 	case *compile.StructSpec:
 		importPath, err := i.Package(s.ThriftFile())
@@ -507,13 +469,12 @@ func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*
 		}
 
 		return &api.Type{
-			Info: &api.TypeInfo{
+			PointerType: &api.Type{
 				ReferenceType: &api.TypeReference{
 					Name:    s.Name,
 					Package: importPath,
 				},
 			},
-			Pointer: ptr.Bool(true),
 		}, nil
 
 	case *compile.TypedefSpec:
@@ -522,15 +483,18 @@ func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*
 			return nil, err
 		}
 
-		return &api.Type{
-			Info: &api.TypeInfo{
-				ReferenceType: &api.TypeReference{
-					Name:    s.Name,
-					Package: importPath,
-				},
+		t = &api.Type{
+			ReferenceType: &api.TypeReference{
+				Name:    s.Name,
+				Package: importPath,
 			},
-			Pointer: ptr.Bool(!required && !isReferenceType(spec)),
-		}, nil
+		}
+
+		if !required && !isReferenceType(spec) {
+			t = &api.Type{PointerType: t}
+		}
+
+		return t, nil
 	default:
 		panic(fmt.Sprintf("Unknown type (%T) %v", spec, spec))
 	}

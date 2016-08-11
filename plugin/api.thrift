@@ -18,36 +18,27 @@ enum SimpleType {
     STRUCT_EMPTY, // struct{}
 }
 
-struct SliceType {
-    1: required Type valueType
+struct TypePair {
+    1: required Type left
+    2: required Type right
 }
 
-struct MapType {
-    1: required Type keyType
-    2: required Type valueType
-}
-
-struct KeyValueSliceType {
-    1: required Type keyType
-    2: required Type valueType
-}
-
-union TypeInfo {
+union Type {
     1: SimpleType simpleType
-    2: SliceType sliceType
-    3: KeyValueSliceType keyValueSliceType
-    4: MapType mapType
-    5: TypeReference referenceType
-}
-
-struct Type {
-    1: required TypeInfo info
     /**
-     * Whether this type should be referenced with a pointer.
+     * Slice of another type
      */
-    2: optional bool pointer = false
-    // TODO(abg): Combine Type and TypeInfo into Type, with a new union field:
-    //  6: Type pointer
+    2: Type sliceType
+    /**
+     * []struct{Key $left, Value $right}
+     */
+    3: TypePair keyValueSliceType
+    4: TypePair mapType
+    5: TypeReference referenceType
+    /**
+     * Pointer to another type.
+     */
+    6: Type pointerType
 }
 
 struct Argument {
@@ -169,3 +160,6 @@ service Plugin {
         throws (1: GeneratorError generatorError)
     // TODO: more exception types?
 }
+
+// TODO(abg): We should have a separate service for each Feature. This way,
+// plugins only implement the services they care about.

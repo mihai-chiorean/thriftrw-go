@@ -776,158 +776,6 @@ func (v *HandshakeResponse) String() string {
 	return fmt.Sprintf("HandshakeResponse{%v}", strings.Join(fields[:i], ", "))
 }
 
-type KeyValueSliceType struct {
-	KeyType   *Type `json:"keyType"`
-	ValueType *Type `json:"valueType"`
-}
-
-func (v *KeyValueSliceType) ToWire() (wire.Value, error) {
-	var (
-		fields [2]wire.Field
-		i      int = 0
-		w      wire.Value
-		err    error
-	)
-	if v.KeyType == nil {
-		return w, errors.New("field KeyType of KeyValueSliceType is required")
-	}
-	w, err = v.KeyType.ToWire()
-	if err != nil {
-		return w, err
-	}
-	fields[i] = wire.Field{ID: 1, Value: w}
-	i++
-	if v.ValueType == nil {
-		return w, errors.New("field ValueType of KeyValueSliceType is required")
-	}
-	w, err = v.ValueType.ToWire()
-	if err != nil {
-		return w, err
-	}
-	fields[i] = wire.Field{ID: 2, Value: w}
-	i++
-	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
-}
-
-func (v *KeyValueSliceType) FromWire(w wire.Value) error {
-	var err error
-	keyTypeIsSet := false
-	valueTypeIsSet := false
-	for _, field := range w.GetStruct().Fields {
-		switch field.ID {
-		case 1:
-			if field.Value.Type() == wire.TStruct {
-				v.KeyType, err = _Type_Read(field.Value)
-				if err != nil {
-					return err
-				}
-				keyTypeIsSet = true
-			}
-		case 2:
-			if field.Value.Type() == wire.TStruct {
-				v.ValueType, err = _Type_Read(field.Value)
-				if err != nil {
-					return err
-				}
-				valueTypeIsSet = true
-			}
-		}
-	}
-	if !keyTypeIsSet {
-		return errors.New("field KeyType of KeyValueSliceType is required")
-	}
-	if !valueTypeIsSet {
-		return errors.New("field ValueType of KeyValueSliceType is required")
-	}
-	return nil
-}
-
-func (v *KeyValueSliceType) String() string {
-	var fields [2]string
-	i := 0
-	fields[i] = fmt.Sprintf("KeyType: %v", v.KeyType)
-	i++
-	fields[i] = fmt.Sprintf("ValueType: %v", v.ValueType)
-	i++
-	return fmt.Sprintf("KeyValueSliceType{%v}", strings.Join(fields[:i], ", "))
-}
-
-type MapType struct {
-	KeyType   *Type `json:"keyType"`
-	ValueType *Type `json:"valueType"`
-}
-
-func (v *MapType) ToWire() (wire.Value, error) {
-	var (
-		fields [2]wire.Field
-		i      int = 0
-		w      wire.Value
-		err    error
-	)
-	if v.KeyType == nil {
-		return w, errors.New("field KeyType of MapType is required")
-	}
-	w, err = v.KeyType.ToWire()
-	if err != nil {
-		return w, err
-	}
-	fields[i] = wire.Field{ID: 1, Value: w}
-	i++
-	if v.ValueType == nil {
-		return w, errors.New("field ValueType of MapType is required")
-	}
-	w, err = v.ValueType.ToWire()
-	if err != nil {
-		return w, err
-	}
-	fields[i] = wire.Field{ID: 2, Value: w}
-	i++
-	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
-}
-
-func (v *MapType) FromWire(w wire.Value) error {
-	var err error
-	keyTypeIsSet := false
-	valueTypeIsSet := false
-	for _, field := range w.GetStruct().Fields {
-		switch field.ID {
-		case 1:
-			if field.Value.Type() == wire.TStruct {
-				v.KeyType, err = _Type_Read(field.Value)
-				if err != nil {
-					return err
-				}
-				keyTypeIsSet = true
-			}
-		case 2:
-			if field.Value.Type() == wire.TStruct {
-				v.ValueType, err = _Type_Read(field.Value)
-				if err != nil {
-					return err
-				}
-				valueTypeIsSet = true
-			}
-		}
-	}
-	if !keyTypeIsSet {
-		return errors.New("field KeyType of MapType is required")
-	}
-	if !valueTypeIsSet {
-		return errors.New("field ValueType of MapType is required")
-	}
-	return nil
-}
-
-func (v *MapType) String() string {
-	var fields [2]string
-	i := 0
-	fields[i] = fmt.Sprintf("KeyType: %v", v.KeyType)
-	i++
-	fields[i] = fmt.Sprintf("ValueType: %v", v.ValueType)
-	i++
-	return fmt.Sprintf("MapType{%v}", strings.Join(fields[:i], ", "))
-}
-
 type Service struct {
 	Name      string      `json:"name"`
 	Package   string      `json:"package"`
@@ -1163,159 +1011,18 @@ func (v SimpleType) String() string {
 	return fmt.Sprintf("SimpleType(%d)", w)
 }
 
-type SliceType struct {
-	ValueType *Type `json:"valueType"`
-}
-
-func (v *SliceType) ToWire() (wire.Value, error) {
-	var (
-		fields [1]wire.Field
-		i      int = 0
-		w      wire.Value
-		err    error
-	)
-	if v.ValueType == nil {
-		return w, errors.New("field ValueType of SliceType is required")
-	}
-	w, err = v.ValueType.ToWire()
-	if err != nil {
-		return w, err
-	}
-	fields[i] = wire.Field{ID: 1, Value: w}
-	i++
-	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
-}
-
-func (v *SliceType) FromWire(w wire.Value) error {
-	var err error
-	valueTypeIsSet := false
-	for _, field := range w.GetStruct().Fields {
-		switch field.ID {
-		case 1:
-			if field.Value.Type() == wire.TStruct {
-				v.ValueType, err = _Type_Read(field.Value)
-				if err != nil {
-					return err
-				}
-				valueTypeIsSet = true
-			}
-		}
-	}
-	if !valueTypeIsSet {
-		return errors.New("field ValueType of SliceType is required")
-	}
-	return nil
-}
-
-func (v *SliceType) String() string {
-	var fields [1]string
-	i := 0
-	fields[i] = fmt.Sprintf("ValueType: %v", v.ValueType)
-	i++
-	return fmt.Sprintf("SliceType{%v}", strings.Join(fields[:i], ", "))
-}
-
 type Type struct {
-	Info    *TypeInfo `json:"info"`
-	Pointer *bool     `json:"pointer,omitempty"`
-}
-
-func _bool_ptr(v bool) *bool {
-	return &v
+	SimpleType        *SimpleType    `json:"simpleType,omitempty"`
+	SliceType         *Type          `json:"sliceType,omitempty"`
+	KeyValueSliceType *TypePair      `json:"keyValueSliceType,omitempty"`
+	MapType           *TypePair      `json:"mapType,omitempty"`
+	ReferenceType     *TypeReference `json:"referenceType,omitempty"`
+	PointerType       *Type          `json:"pointerType,omitempty"`
 }
 
 func (v *Type) ToWire() (wire.Value, error) {
 	var (
-		fields [2]wire.Field
-		i      int = 0
-		w      wire.Value
-		err    error
-	)
-	if v.Info == nil {
-		return w, errors.New("field Info of Type is required")
-	}
-	w, err = v.Info.ToWire()
-	if err != nil {
-		return w, err
-	}
-	fields[i] = wire.Field{ID: 1, Value: w}
-	i++
-	if v.Pointer == nil {
-		v.Pointer = _bool_ptr(false)
-	}
-	{
-		w, err = wire.NewValueBool(*(v.Pointer)), error(nil)
-		if err != nil {
-			return w, err
-		}
-		fields[i] = wire.Field{ID: 2, Value: w}
-		i++
-	}
-	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
-}
-
-func _TypeInfo_Read(w wire.Value) (*TypeInfo, error) {
-	var v TypeInfo
-	err := v.FromWire(w)
-	return &v, err
-}
-
-func (v *Type) FromWire(w wire.Value) error {
-	var err error
-	infoIsSet := false
-	for _, field := range w.GetStruct().Fields {
-		switch field.ID {
-		case 1:
-			if field.Value.Type() == wire.TStruct {
-				v.Info, err = _TypeInfo_Read(field.Value)
-				if err != nil {
-					return err
-				}
-				infoIsSet = true
-			}
-		case 2:
-			if field.Value.Type() == wire.TBool {
-				var x bool
-				x, err = field.Value.GetBool(), error(nil)
-				v.Pointer = &x
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	if !infoIsSet {
-		return errors.New("field Info of Type is required")
-	}
-	if v.Pointer == nil {
-		v.Pointer = _bool_ptr(false)
-	}
-	return nil
-}
-
-func (v *Type) String() string {
-	var fields [2]string
-	i := 0
-	fields[i] = fmt.Sprintf("Info: %v", v.Info)
-	i++
-	if v.Pointer != nil {
-		fields[i] = fmt.Sprintf("Pointer: %v", *(v.Pointer))
-		i++
-	}
-	return fmt.Sprintf("Type{%v}", strings.Join(fields[:i], ", "))
-}
-
-type TypeInfo struct {
-	SimpleType        *SimpleType        `json:"simpleType,omitempty"`
-	SliceType         *SliceType         `json:"sliceType,omitempty"`
-	KeyValueSliceType *KeyValueSliceType `json:"keyValueSliceType,omitempty"`
-	MapType           *MapType           `json:"mapType,omitempty"`
-	ReferenceType     *TypeReference     `json:"referenceType,omitempty"`
-}
-
-func (v *TypeInfo) ToWire() (wire.Value, error) {
-	var (
-		fields [5]wire.Field
+		fields [6]wire.Field
 		i      int = 0
 		w      wire.Value
 		err    error
@@ -1360,8 +1067,16 @@ func (v *TypeInfo) ToWire() (wire.Value, error) {
 		fields[i] = wire.Field{ID: 5, Value: w}
 		i++
 	}
+	if v.PointerType != nil {
+		w, err = v.PointerType.ToWire()
+		if err != nil {
+			return w, err
+		}
+		fields[i] = wire.Field{ID: 6, Value: w}
+		i++
+	}
 	if i != 1 {
-		return wire.Value{}, fmt.Errorf("TypeInfo should have exactly one field: got %v fields", i)
+		return wire.Value{}, fmt.Errorf("Type should have exactly one field: got %v fields", i)
 	}
 	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
 }
@@ -1372,20 +1087,8 @@ func _SimpleType_Read(w wire.Value) (SimpleType, error) {
 	return v, err
 }
 
-func _SliceType_Read(w wire.Value) (*SliceType, error) {
-	var v SliceType
-	err := v.FromWire(w)
-	return &v, err
-}
-
-func _KeyValueSliceType_Read(w wire.Value) (*KeyValueSliceType, error) {
-	var v KeyValueSliceType
-	err := v.FromWire(w)
-	return &v, err
-}
-
-func _MapType_Read(w wire.Value) (*MapType, error) {
-	var v MapType
+func _TypePair_Read(w wire.Value) (*TypePair, error) {
+	var v TypePair
 	err := v.FromWire(w)
 	return &v, err
 }
@@ -1396,7 +1099,7 @@ func _TypeReference_Read(w wire.Value) (*TypeReference, error) {
 	return &v, err
 }
 
-func (v *TypeInfo) FromWire(w wire.Value) error {
+func (v *Type) FromWire(w wire.Value) error {
 	var err error
 	for _, field := range w.GetStruct().Fields {
 		switch field.ID {
@@ -1411,21 +1114,21 @@ func (v *TypeInfo) FromWire(w wire.Value) error {
 			}
 		case 2:
 			if field.Value.Type() == wire.TStruct {
-				v.SliceType, err = _SliceType_Read(field.Value)
+				v.SliceType, err = _Type_Read(field.Value)
 				if err != nil {
 					return err
 				}
 			}
 		case 3:
 			if field.Value.Type() == wire.TStruct {
-				v.KeyValueSliceType, err = _KeyValueSliceType_Read(field.Value)
+				v.KeyValueSliceType, err = _TypePair_Read(field.Value)
 				if err != nil {
 					return err
 				}
 			}
 		case 4:
 			if field.Value.Type() == wire.TStruct {
-				v.MapType, err = _MapType_Read(field.Value)
+				v.MapType, err = _TypePair_Read(field.Value)
 				if err != nil {
 					return err
 				}
@@ -1433,6 +1136,13 @@ func (v *TypeInfo) FromWire(w wire.Value) error {
 		case 5:
 			if field.Value.Type() == wire.TStruct {
 				v.ReferenceType, err = _TypeReference_Read(field.Value)
+				if err != nil {
+					return err
+				}
+			}
+		case 6:
+			if field.Value.Type() == wire.TStruct {
+				v.PointerType, err = _Type_Read(field.Value)
 				if err != nil {
 					return err
 				}
@@ -1455,14 +1165,17 @@ func (v *TypeInfo) FromWire(w wire.Value) error {
 	if v.ReferenceType != nil {
 		count++
 	}
+	if v.PointerType != nil {
+		count++
+	}
 	if count != 1 {
-		return fmt.Errorf("TypeInfo should have exactly one field: got %v fields", count)
+		return fmt.Errorf("Type should have exactly one field: got %v fields", count)
 	}
 	return nil
 }
 
-func (v *TypeInfo) String() string {
-	var fields [5]string
+func (v *Type) String() string {
+	var fields [6]string
 	i := 0
 	if v.SimpleType != nil {
 		fields[i] = fmt.Sprintf("SimpleType: %v", *(v.SimpleType))
@@ -1484,7 +1197,87 @@ func (v *TypeInfo) String() string {
 		fields[i] = fmt.Sprintf("ReferenceType: %v", v.ReferenceType)
 		i++
 	}
-	return fmt.Sprintf("TypeInfo{%v}", strings.Join(fields[:i], ", "))
+	if v.PointerType != nil {
+		fields[i] = fmt.Sprintf("PointerType: %v", v.PointerType)
+		i++
+	}
+	return fmt.Sprintf("Type{%v}", strings.Join(fields[:i], ", "))
+}
+
+type TypePair struct {
+	Left  *Type `json:"left"`
+	Right *Type `json:"right"`
+}
+
+func (v *TypePair) ToWire() (wire.Value, error) {
+	var (
+		fields [2]wire.Field
+		i      int = 0
+		w      wire.Value
+		err    error
+	)
+	if v.Left == nil {
+		return w, errors.New("field Left of TypePair is required")
+	}
+	w, err = v.Left.ToWire()
+	if err != nil {
+		return w, err
+	}
+	fields[i] = wire.Field{ID: 1, Value: w}
+	i++
+	if v.Right == nil {
+		return w, errors.New("field Right of TypePair is required")
+	}
+	w, err = v.Right.ToWire()
+	if err != nil {
+		return w, err
+	}
+	fields[i] = wire.Field{ID: 2, Value: w}
+	i++
+	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
+}
+
+func (v *TypePair) FromWire(w wire.Value) error {
+	var err error
+	leftIsSet := false
+	rightIsSet := false
+	for _, field := range w.GetStruct().Fields {
+		switch field.ID {
+		case 1:
+			if field.Value.Type() == wire.TStruct {
+				v.Left, err = _Type_Read(field.Value)
+				if err != nil {
+					return err
+				}
+				leftIsSet = true
+			}
+		case 2:
+			if field.Value.Type() == wire.TStruct {
+				v.Right, err = _Type_Read(field.Value)
+				if err != nil {
+					return err
+				}
+				rightIsSet = true
+			}
+		}
+	}
+	if !leftIsSet {
+		return errors.New("field Left of TypePair is required")
+	}
+	if !rightIsSet {
+		return errors.New("field Right of TypePair is required")
+	}
+	return nil
+}
+
+func (v *TypePair) String() string {
+	var fields [2]string
+	i := 0
+	fields[i] = fmt.Sprintf("Left: %v", v.Left)
+	i++
+	fields[i] = fmt.Sprintf("Right: %v", v.Right)
+	i++
+	return fmt.Sprintf("TypePair{%v}", strings.Join(fields[:i], ", "))
 }
 
 type TypeReference struct {
