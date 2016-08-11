@@ -278,7 +278,8 @@ func (v *Function) String() string {
 
 type GenerateRequest struct {
 	RootServices []int32            `json:"rootServices"`
-	AllServices  map[int32]*Service `json:"allServices"`
+	Services     map[int32]*Service `json:"services"`
+	Modules      map[int32]*Module  `json:"modules"`
 }
 
 type _List_I32_ValueList []int32
@@ -343,9 +344,44 @@ func (_Map_I32_Service_MapItemList) ValueType() wire.Type {
 func (_Map_I32_Service_MapItemList) Close() {
 }
 
+type _Map_I32_Module_MapItemList map[int32]*Module
+
+func (m _Map_I32_Module_MapItemList) ForEach(f func(wire.MapItem) error) error {
+	for k, v := range m {
+		kw, err := wire.NewValueI32(k), error(nil)
+		if err != nil {
+			return err
+		}
+		vw, err := v.ToWire()
+		if err != nil {
+			return err
+		}
+		err = f(wire.MapItem{Key: kw, Value: vw})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m _Map_I32_Module_MapItemList) Size() int {
+	return len(m)
+}
+
+func (_Map_I32_Module_MapItemList) KeyType() wire.Type {
+	return wire.TI32
+}
+
+func (_Map_I32_Module_MapItemList) ValueType() wire.Type {
+	return wire.TStruct
+}
+
+func (_Map_I32_Module_MapItemList) Close() {
+}
+
 func (v *GenerateRequest) ToWire() (wire.Value, error) {
 	var (
-		fields [2]wire.Field
+		fields [3]wire.Field
 		i      int = 0
 		w      wire.Value
 		err    error
@@ -359,14 +395,23 @@ func (v *GenerateRequest) ToWire() (wire.Value, error) {
 	}
 	fields[i] = wire.Field{ID: 1, Value: w}
 	i++
-	if v.AllServices == nil {
-		return w, errors.New("field AllServices of GenerateRequest is required")
+	if v.Services == nil {
+		return w, errors.New("field Services of GenerateRequest is required")
 	}
-	w, err = wire.NewValueMap(_Map_I32_Service_MapItemList(v.AllServices)), error(nil)
+	w, err = wire.NewValueMap(_Map_I32_Service_MapItemList(v.Services)), error(nil)
 	if err != nil {
 		return w, err
 	}
 	fields[i] = wire.Field{ID: 2, Value: w}
+	i++
+	if v.Modules == nil {
+		return w, errors.New("field Modules of GenerateRequest is required")
+	}
+	w, err = wire.NewValueMap(_Map_I32_Module_MapItemList(v.Modules)), error(nil)
+	if err != nil {
+		return w, err
+	}
+	fields[i] = wire.Field{ID: 3, Value: w}
 	i++
 	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
 }
@@ -418,10 +463,41 @@ func _Map_I32_Service_Read(m wire.MapItemList) (map[int32]*Service, error) {
 	return o, err
 }
 
+func _Module_Read(w wire.Value) (*Module, error) {
+	var v Module
+	err := v.FromWire(w)
+	return &v, err
+}
+
+func _Map_I32_Module_Read(m wire.MapItemList) (map[int32]*Module, error) {
+	if m.KeyType() != wire.TI32 {
+		return nil, nil
+	}
+	if m.ValueType() != wire.TStruct {
+		return nil, nil
+	}
+	o := make(map[int32]*Module, m.Size())
+	err := m.ForEach(func(x wire.MapItem) error {
+		k, err := x.Key.GetI32(), error(nil)
+		if err != nil {
+			return err
+		}
+		v, err := _Module_Read(x.Value)
+		if err != nil {
+			return err
+		}
+		o[k] = v
+		return nil
+	})
+	m.Close()
+	return o, err
+}
+
 func (v *GenerateRequest) FromWire(w wire.Value) error {
 	var err error
 	rootServicesIsSet := false
-	allServicesIsSet := false
+	servicesIsSet := false
+	modulesIsSet := false
 	for _, field := range w.GetStruct().Fields {
 		switch field.ID {
 		case 1:
@@ -434,29 +510,42 @@ func (v *GenerateRequest) FromWire(w wire.Value) error {
 			}
 		case 2:
 			if field.Value.Type() == wire.TMap {
-				v.AllServices, err = _Map_I32_Service_Read(field.Value.GetMap())
+				v.Services, err = _Map_I32_Service_Read(field.Value.GetMap())
 				if err != nil {
 					return err
 				}
-				allServicesIsSet = true
+				servicesIsSet = true
+			}
+		case 3:
+			if field.Value.Type() == wire.TMap {
+				v.Modules, err = _Map_I32_Module_Read(field.Value.GetMap())
+				if err != nil {
+					return err
+				}
+				modulesIsSet = true
 			}
 		}
 	}
 	if !rootServicesIsSet {
 		return errors.New("field RootServices of GenerateRequest is required")
 	}
-	if !allServicesIsSet {
-		return errors.New("field AllServices of GenerateRequest is required")
+	if !servicesIsSet {
+		return errors.New("field Services of GenerateRequest is required")
+	}
+	if !modulesIsSet {
+		return errors.New("field Modules of GenerateRequest is required")
 	}
 	return nil
 }
 
 func (v *GenerateRequest) String() string {
-	var fields [2]string
+	var fields [3]string
 	i := 0
 	fields[i] = fmt.Sprintf("RootServices: %v", v.RootServices)
 	i++
-	fields[i] = fmt.Sprintf("AllServices: %v", v.AllServices)
+	fields[i] = fmt.Sprintf("Services: %v", v.Services)
+	i++
+	fields[i] = fmt.Sprintf("Modules: %v", v.Modules)
 	i++
 	return fmt.Sprintf("GenerateRequest{%v}", strings.Join(fields[:i], ", "))
 }
@@ -844,12 +933,83 @@ func (v *HandshakeResponse) String() string {
 	return fmt.Sprintf("HandshakeResponse{%v}", strings.Join(fields[:i], ", "))
 }
 
+type Module struct {
+	Package   string `json:"package"`
+	Directory string `json:"directory"`
+}
+
+func (v *Module) ToWire() (wire.Value, error) {
+	var (
+		fields [2]wire.Field
+		i      int = 0
+		w      wire.Value
+		err    error
+	)
+	w, err = wire.NewValueString(v.Package), error(nil)
+	if err != nil {
+		return w, err
+	}
+	fields[i] = wire.Field{ID: 1, Value: w}
+	i++
+	w, err = wire.NewValueString(v.Directory), error(nil)
+	if err != nil {
+		return w, err
+	}
+	fields[i] = wire.Field{ID: 2, Value: w}
+	i++
+	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
+}
+
+func (v *Module) FromWire(w wire.Value) error {
+	var err error
+	packageIsSet := false
+	directoryIsSet := false
+	for _, field := range w.GetStruct().Fields {
+		switch field.ID {
+		case 1:
+			if field.Value.Type() == wire.TBinary {
+				v.Package, err = field.Value.GetString(), error(nil)
+				if err != nil {
+					return err
+				}
+				packageIsSet = true
+			}
+		case 2:
+			if field.Value.Type() == wire.TBinary {
+				v.Directory, err = field.Value.GetString(), error(nil)
+				if err != nil {
+					return err
+				}
+				directoryIsSet = true
+			}
+		}
+	}
+	if !packageIsSet {
+		return errors.New("field Package of Module is required")
+	}
+	if !directoryIsSet {
+		return errors.New("field Directory of Module is required")
+	}
+	return nil
+}
+
+func (v *Module) String() string {
+	var fields [2]string
+	i := 0
+	fields[i] = fmt.Sprintf("Package: %v", v.Package)
+	i++
+	fields[i] = fmt.Sprintf("Directory: %v", v.Directory)
+	i++
+	return fmt.Sprintf("Module{%v}", strings.Join(fields[:i], ", "))
+}
+
 type Service struct {
 	Name      string      `json:"name"`
 	Package   string      `json:"package"`
 	Directory string      `json:"directory"`
 	ParentId  *int32      `json:"parentId,omitempty"`
 	Functions []*Function `json:"functions"`
+	ModuleId  int32       `json:"moduleId"`
 }
 
 type _List_Function_ValueList []*Function
@@ -881,7 +1041,7 @@ func (_List_Function_ValueList) Close() {
 
 func (v *Service) ToWire() (wire.Value, error) {
 	var (
-		fields [5]wire.Field
+		fields [6]wire.Field
 		i      int = 0
 		w      wire.Value
 		err    error
@@ -921,6 +1081,12 @@ func (v *Service) ToWire() (wire.Value, error) {
 	}
 	fields[i] = wire.Field{ID: 5, Value: w}
 	i++
+	w, err = wire.NewValueI32(v.ModuleId), error(nil)
+	if err != nil {
+		return w, err
+	}
+	fields[i] = wire.Field{ID: 6, Value: w}
+	i++
 	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
 }
 
@@ -953,6 +1119,7 @@ func (v *Service) FromWire(w wire.Value) error {
 	packageIsSet := false
 	directoryIsSet := false
 	functionsIsSet := false
+	moduleIdIsSet := false
 	for _, field := range w.GetStruct().Fields {
 		switch field.ID {
 		case 1:
@@ -996,6 +1163,14 @@ func (v *Service) FromWire(w wire.Value) error {
 				}
 				functionsIsSet = true
 			}
+		case 6:
+			if field.Value.Type() == wire.TI32 {
+				v.ModuleId, err = field.Value.GetI32(), error(nil)
+				if err != nil {
+					return err
+				}
+				moduleIdIsSet = true
+			}
 		}
 	}
 	if !nameIsSet {
@@ -1010,11 +1185,14 @@ func (v *Service) FromWire(w wire.Value) error {
 	if !functionsIsSet {
 		return errors.New("field Functions of Service is required")
 	}
+	if !moduleIdIsSet {
+		return errors.New("field ModuleId of Service is required")
+	}
 	return nil
 }
 
 func (v *Service) String() string {
-	var fields [5]string
+	var fields [6]string
 	i := 0
 	fields[i] = fmt.Sprintf("Name: %v", v.Name)
 	i++
@@ -1027,6 +1205,8 @@ func (v *Service) String() string {
 		i++
 	}
 	fields[i] = fmt.Sprintf("Functions: %v", v.Functions)
+	i++
+	fields[i] = fmt.Sprintf("ModuleId: %v", v.ModuleId)
 	i++
 	return fmt.Sprintf("Service{%v}", strings.Join(fields[:i], ", "))
 }

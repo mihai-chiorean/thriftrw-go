@@ -279,12 +279,47 @@ func generateModule(m *compile.Module, i thriftPackageImporter, o *Options) erro
 	return nil
 }
 
+func buildModuleMap(i thriftPackageImporter, m *compile.Module) (map[string]int32, map[int32]*api.Module, error) {
+	pathToID := make(map[string]int32)
+	idToModule := make(map[int32]*api.Module)
+	nextID := int32(1)
+
+	err := m.Walk(func(m *compile.Module) error {
+		id := nextID
+		nextID++
+
+		importPath, err := i.Package(m.ThriftPath)
+		if err != nil {
+			return err
+		}
+
+		dir, err := i.RelativePackage(m.ThriftPath)
+		if err != nil {
+			return err
+		}
+
+		pathToID[m.ThriftPath] = id
+		idToModule[id] = &api.Module{
+			Package:   importPath,
+			Directory: dir,
+		}
+		return nil
+	})
+
+	return pathToID, idToModule, err
+}
+
 func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.GenerateRequest, error) {
 	type key struct{ ThriftPath, ServiceName string }
 
+	moduleIds, modules, err := buildModuleMap(i, m)
+	if err != nil {
+		return nil, err
+	}
+
 	nextID := int32(1)
 	serviceIds := make(map[key]int32)
-	allServices := make(map[int32]*api.Service)
+	services := make(map[int32]*api.Service)
 	var rootServices []int32
 
 	var buildService func(spec *compile.ServiceSpec) (int32, error)
@@ -322,12 +357,13 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 		}
 
 		// TODO make this part of generateModule somehow
-		allServices[id] = &api.Service{
+		services[id] = &api.Service{
 			Name:      spec.Name,
 			Package:   importPath,
 			Directory: filepath.Join(dir, "service", filepath.Base(importPath)),
 			ParentId:  parentID,
 			Functions: functions,
+			ModuleId:  moduleIds[spec.ThriftFile()],
 		}
 		serviceIds[k] = id
 		// TODO(abg): This should only be added if it belonged to the root module
@@ -346,7 +382,8 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 
 	return &api.GenerateRequest{
 		RootServices: rootServices,
-		AllServices:  allServices,
+		Services:     services,
+		Modules:      modules,
 	}, nil
 }
 
