@@ -277,7 +277,35 @@ func (v *Function) String() string {
 }
 
 type GenerateRequest struct {
-	Services map[int32]*Service `json:"services"`
+	RootServices []int32            `json:"rootServices"`
+	AllServices  map[int32]*Service `json:"allServices"`
+}
+
+type _List_I32_ValueList []int32
+
+func (v _List_I32_ValueList) ForEach(f func(wire.Value) error) error {
+	for _, x := range v {
+		w, err := wire.NewValueI32(x), error(nil)
+		if err != nil {
+			return err
+		}
+		err = f(w)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (v _List_I32_ValueList) Size() int {
+	return len(v)
+}
+
+func (_List_I32_ValueList) ValueType() wire.Type {
+	return wire.TI32
+}
+
+func (_List_I32_ValueList) Close() {
 }
 
 type _Map_I32_Service_MapItemList map[int32]*Service
@@ -317,21 +345,47 @@ func (_Map_I32_Service_MapItemList) Close() {
 
 func (v *GenerateRequest) ToWire() (wire.Value, error) {
 	var (
-		fields [1]wire.Field
+		fields [2]wire.Field
 		i      int = 0
 		w      wire.Value
 		err    error
 	)
-	if v.Services == nil {
-		return w, errors.New("field Services of GenerateRequest is required")
+	if v.RootServices == nil {
+		return w, errors.New("field RootServices of GenerateRequest is required")
 	}
-	w, err = wire.NewValueMap(_Map_I32_Service_MapItemList(v.Services)), error(nil)
+	w, err = wire.NewValueList(_List_I32_ValueList(v.RootServices)), error(nil)
 	if err != nil {
 		return w, err
 	}
 	fields[i] = wire.Field{ID: 1, Value: w}
 	i++
+	if v.AllServices == nil {
+		return w, errors.New("field AllServices of GenerateRequest is required")
+	}
+	w, err = wire.NewValueMap(_Map_I32_Service_MapItemList(v.AllServices)), error(nil)
+	if err != nil {
+		return w, err
+	}
+	fields[i] = wire.Field{ID: 2, Value: w}
+	i++
 	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
+}
+
+func _List_I32_Read(l wire.ValueList) ([]int32, error) {
+	if l.ValueType() != wire.TI32 {
+		return nil, nil
+	}
+	o := make([]int32, 0, l.Size())
+	err := l.ForEach(func(x wire.Value) error {
+		i, err := x.GetI32(), error(nil)
+		if err != nil {
+			return err
+		}
+		o = append(o, i)
+		return nil
+	})
+	l.Close()
+	return o, err
 }
 
 func _Service_Read(w wire.Value) (*Service, error) {
@@ -366,29 +420,43 @@ func _Map_I32_Service_Read(m wire.MapItemList) (map[int32]*Service, error) {
 
 func (v *GenerateRequest) FromWire(w wire.Value) error {
 	var err error
-	servicesIsSet := false
+	rootServicesIsSet := false
+	allServicesIsSet := false
 	for _, field := range w.GetStruct().Fields {
 		switch field.ID {
 		case 1:
-			if field.Value.Type() == wire.TMap {
-				v.Services, err = _Map_I32_Service_Read(field.Value.GetMap())
+			if field.Value.Type() == wire.TList {
+				v.RootServices, err = _List_I32_Read(field.Value.GetList())
 				if err != nil {
 					return err
 				}
-				servicesIsSet = true
+				rootServicesIsSet = true
+			}
+		case 2:
+			if field.Value.Type() == wire.TMap {
+				v.AllServices, err = _Map_I32_Service_Read(field.Value.GetMap())
+				if err != nil {
+					return err
+				}
+				allServicesIsSet = true
 			}
 		}
 	}
-	if !servicesIsSet {
-		return errors.New("field Services of GenerateRequest is required")
+	if !rootServicesIsSet {
+		return errors.New("field RootServices of GenerateRequest is required")
+	}
+	if !allServicesIsSet {
+		return errors.New("field AllServices of GenerateRequest is required")
 	}
 	return nil
 }
 
 func (v *GenerateRequest) String() string {
-	var fields [1]string
+	var fields [2]string
 	i := 0
-	fields[i] = fmt.Sprintf("Services: %v", v.Services)
+	fields[i] = fmt.Sprintf("RootServices: %v", v.RootServices)
+	i++
+	fields[i] = fmt.Sprintf("AllServices: %v", v.AllServices)
 	i++
 	return fmt.Sprintf("GenerateRequest{%v}", strings.Join(fields[:i], ", "))
 }

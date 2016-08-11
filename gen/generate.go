@@ -284,7 +284,8 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 
 	nextID := int32(1)
 	serviceIds := make(map[key]int32)
-	services := make(map[int32]*api.Service)
+	allServices := make(map[int32]*api.Service)
+	var rootServices []int32
 
 	var buildService func(spec *compile.ServiceSpec) (int32, error)
 	buildService = func(spec *compile.ServiceSpec) (int32, error) {
@@ -321,7 +322,7 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 		}
 
 		// TODO make this part of generateModule somehow
-		services[id] = &api.Service{
+		allServices[id] = &api.Service{
 			Name:      spec.Name,
 			Package:   importPath,
 			Directory: filepath.Join(dir, "service", filepath.Base(importPath)),
@@ -329,6 +330,9 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 			Functions: functions,
 		}
 		serviceIds[k] = id
+		// TODO(abg): This should only be added if it belonged to the root module
+		// if o.NoRecurse is set.
+		rootServices = append(rootServices, id)
 		return id, nil
 	}
 
@@ -338,7 +342,12 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 		}
 	}
 
-	return &api.GenerateRequest{Services: services}, nil
+	// TODO(abg): Use o.NoRecurse to decide what the root services should be.
+
+	return &api.GenerateRequest{
+		RootServices: rootServices,
+		AllServices:  allServices,
+	}, nil
 }
 
 func buildFunctions(i thriftPackageImporter, fs map[string]*compile.FunctionSpec) ([]*api.Function, error) {
