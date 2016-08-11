@@ -76,12 +76,16 @@ struct Service {
 
 struct GenerateRequest {
     /**
+     * IDs of services for which code should be generated.
+     */
+    1: required list<i32> rootServices
+    /**
      * Map of service ID to service.
      *
-     * Service ID has no meaning besides no provide a unique identifier for
-     * all the services in a GenerateRequest.
+     * Service ID has no meaning besides to provide a unique identifier for
+     * services to reference each other.
      */
-    1: required map<i32, Service> services
+    2: required map<i32, Service> allServices
 }
 
 struct GenerateResponse {
