@@ -7,7 +7,7 @@ struct TypeReference {
 }
 
 enum SimpleType {
-    BOOL,         // bool
+    BOOL = 1,     // bool
     BYTE,         // byte
     INT8,         // int8
     INT16,        // int16
@@ -140,7 +140,7 @@ enum Feature {
      * Plugins that generate arbitrary code for services should use this
      * feature.
      */
-    GENERATOR,
+    GENERATOR = 1,
     // TODO(abg): Rename to SERVICE_GENERATOR
 
     // TODO: TAGGER for struct-tagging plugins
