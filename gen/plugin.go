@@ -128,6 +128,9 @@ func (ps multiPlug) Generate(req *api.GenerateRequest) (*api.GenerateResponse, e
 		}
 	}
 
+	// TODO(abg): Validate that none of the GenerateResponses contain ".." paths.
+	// If they do, record the name of the plugin that generated that path.
+
 	if len(errs) > 0 {
 		return nil, multiErr(errs)
 	}

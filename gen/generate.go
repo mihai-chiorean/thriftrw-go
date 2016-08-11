@@ -78,6 +78,22 @@ func Generate(m *compile.Module, o *Options) error {
 		ThriftRoot:   o.ThriftRoot,
 	}
 
+	if o.NoRecurse {
+		if err := generateModule(m, importer, o); err != nil {
+			return err
+		}
+	} else {
+		err := m.Walk(func(m *compile.Module) error {
+			if err := generateModule(m, importer, o); err != nil {
+				return generateError{Name: m.ThriftPath, Reason: err}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	if len(o.Plugins) > 0 {
 		plug := multiPlug(o.Plugins)
 		if err := plug.Open(); err != nil {
@@ -95,20 +111,28 @@ func Generate(m *compile.Module, o *Options) error {
 			return err
 		}
 
-		// TODO(abg): generate files
-		fmt.Println("Generating", res)
-	}
+		for path, contents := range res.Files {
+			if strings.Contains(path, "..") {
+				// TODO(abg): not the place to do this
+				return fmt.Errorf("a plugin is trying to access a parent directory: %v", path)
+			}
 
-	if o.NoRecurse {
-		return generateModule(m, importer, o)
-	}
+			fullPath := filepath.Join(o.OutputDir, path)
+			directory := filepath.Dir(fullPath)
 
-	return m.Walk(func(m *compile.Module) error {
-		if err := generateModule(m, importer, o); err != nil {
-			return generateError{Name: m.ThriftPath, Reason: err}
+			if err := os.MkdirAll(directory, 0755); err != nil {
+				return fmt.Errorf("could not create directory %q: %v", directory, err)
+			}
+
+			// TODO(abg): If the file is a .go file, reformat it.
+
+			if err := ioutil.WriteFile(fullPath, contents, 0644); err != nil {
+				return fmt.Errorf("failed to write %q: %v", fullPath, err)
+			}
 		}
-		return nil
-	})
+	}
+
+	return nil
 }
 
 // TODO(abg): Make some sort of public interface out of the Importer
