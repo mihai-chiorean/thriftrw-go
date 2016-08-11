@@ -63,7 +63,7 @@ struct Service {
      * Path to the directory containing code for this service.
      *
      * The path is relative to the top-most directory ThriftRW has access to.
-     * Plugins SHOULD not make any assumptions about the absolute location of
+     * Plugins SHOULD NOT make any assumptions about the absolute location of
      * the files.
      */
     3: required string directory
@@ -72,6 +72,25 @@ struct Service {
      */
     4: optional i32 parentId
     5: required list<Function> functions
+    /**
+     * ID of the module which declared this service.
+     */
+    6: required i32 moduleId
+}
+
+struct Module {
+    /**
+     * Import path for the package defining the types for this module.
+     */
+    1: required string package
+    /**
+     * Path to the directory containing the code for this module.
+     *
+     * The path is relative to the top-most directory ThriftRW has access to.
+     * Plugins SHOULD NOT make any assumptions about the absolute location of
+     * the files.
+     */
+    2: required string directory
 }
 
 struct GenerateRequest {
@@ -85,7 +104,15 @@ struct GenerateRequest {
      * Service ID has no meaning besides to provide a unique identifier for
      * services to reference each other.
      */
-    2: required map<i32, Service> allServices
+    2: required map<i32, Service> services
+    /**
+     * List of Thrift modules for which code was generated.
+     *
+     * A module corresponds to a single Thrift file and which may have contained
+     * zero or more services in it. The module package only exposes the types
+     * defined in the Thrift file.
+     */
+    3: required map<i32, Module> modules
 }
 
 struct GenerateResponse {
@@ -93,7 +120,7 @@ struct GenerateResponse {
      * Map of file path to file contents.
      *
      * All paths MUST be relative to the top-most directory ThriftRW has
-     * access to. Plugins SHOULD not make any assumptions about the absolute
+     * access to. Plugins SHOULD NOT make any assumptions about the absolute
      * location of the files. The paths MUST NOT contain the string "..".
      *
      * Go files in the output WILL be reformatted by ThriftRW.
@@ -110,9 +137,11 @@ struct HandshakeRequest {
  */
 enum Feature {
     /**
-     * Plugins that generate arbitrary code should use this feature.
+     * Plugins that generate arbitrary code for services should use this
+     * feature.
      */
     GENERATOR,
+    // TODO(abg): Rename to SERVICE_GENERATOR
 
     // TODO: TAGGER for struct-tagging plugins
 }
