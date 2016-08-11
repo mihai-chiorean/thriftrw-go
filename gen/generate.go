@@ -397,7 +397,7 @@ func buildFunctions(i thriftPackageImporter, fs map[string]*compile.FunctionSpec
 			return nil, err
 		}
 		function := &api.Function{
-			Name:      spec.Name,
+			Name:      goCase(spec.Name),
 			Arguments: args,
 		}
 
@@ -432,7 +432,7 @@ func buildArguments(i thriftPackageImporter, fs compile.FieldGroup) ([]*api.Argu
 		}
 
 		args = append(args, &api.Argument{
-			Name: f.Name, // TODO goCase
+			Name: goCase(f.Name),
 			Type: t,
 		})
 	}
@@ -523,7 +523,7 @@ func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*
 
 		t = &api.Type{
 			ReferenceType: &api.TypeReference{
-				Name:    s.Name,
+				Name:    goCase(s.Name),
 				Package: importPath,
 			},
 		}
@@ -541,7 +541,7 @@ func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*
 		return &api.Type{
 			PointerType: &api.Type{
 				ReferenceType: &api.TypeReference{
-					Name:    s.Name,
+					Name:    goCase(s.Name),
 					Package: importPath,
 				},
 			},
@@ -555,7 +555,7 @@ func buildType(i thriftPackageImporter, spec compile.TypeSpec, required bool) (*
 
 		t = &api.Type{
 			ReferenceType: &api.TypeReference{
-				Name:    s.Name,
+				Name:    goCase(s.Name),
 				Package: importPath,
 			},
 		}
