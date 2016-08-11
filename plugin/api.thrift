@@ -90,7 +90,7 @@ struct GenerateResponse {
      *
      * All paths MUST be relative to the top-most directory ThriftRW has
      * access to. Plugins SHOULD not make any assumptions about the absolute
-     * location of the files.
+     * location of the files. The paths MUST NOT contain the string "..".
      *
      * Go files in the output WILL be reformatted by ThriftRW.
      */
