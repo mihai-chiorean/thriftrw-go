@@ -92,7 +92,7 @@ func (v *Argument) String() string {
 type Feature int32
 
 const (
-	FeatureGenerator Feature = 0
+	FeatureGenerator Feature = 1
 )
 
 func (v Feature) ToWire() (wire.Value, error) {
@@ -107,7 +107,7 @@ func (v *Feature) FromWire(w wire.Value) error {
 func (v Feature) String() string {
 	w := int32(v)
 	switch w {
-	case 0:
+	case 1:
 		return "Generator"
 	}
 	return fmt.Sprintf("Feature(%d)", w)
@@ -1214,15 +1214,15 @@ func (v *Service) String() string {
 type SimpleType int32
 
 const (
-	SimpleTypeBool        SimpleType = 0
-	SimpleTypeByte        SimpleType = 1
-	SimpleTypeInt8        SimpleType = 2
-	SimpleTypeInt16       SimpleType = 3
-	SimpleTypeInt32       SimpleType = 4
-	SimpleTypeInt64       SimpleType = 5
-	SimpleTypeFloat64     SimpleType = 6
-	SimpleTypeString      SimpleType = 7
-	SimpleTypeStructEmpty SimpleType = 8
+	SimpleTypeBool        SimpleType = 1
+	SimpleTypeByte        SimpleType = 2
+	SimpleTypeInt8        SimpleType = 3
+	SimpleTypeInt16       SimpleType = 4
+	SimpleTypeInt32       SimpleType = 5
+	SimpleTypeInt64       SimpleType = 6
+	SimpleTypeFloat64     SimpleType = 7
+	SimpleTypeString      SimpleType = 8
+	SimpleTypeStructEmpty SimpleType = 9
 )
 
 func (v SimpleType) ToWire() (wire.Value, error) {
@@ -1237,23 +1237,23 @@ func (v *SimpleType) FromWire(w wire.Value) error {
 func (v SimpleType) String() string {
 	w := int32(v)
 	switch w {
-	case 0:
-		return "Bool"
 	case 1:
-		return "Byte"
+		return "Bool"
 	case 2:
-		return "Int8"
+		return "Byte"
 	case 3:
-		return "Int16"
+		return "Int8"
 	case 4:
-		return "Int32"
+		return "Int16"
 	case 5:
-		return "Int64"
+		return "Int32"
 	case 6:
-		return "Float64"
+		return "Int64"
 	case 7:
-		return "String"
+		return "Float64"
 	case 8:
+		return "String"
+	case 9:
 		return "StructEmpty"
 	}
 	return fmt.Sprintf("SimpleType(%d)", w)
