@@ -189,8 +189,7 @@ func (p *Plugin) Open() error {
 		panic(fmt.Sprintf("plugin %q is already running", p.name))
 	}
 
-	// TODO(abg): Do we need thread-safety? Plugins will not be called
-	// concurrently.
+	// TODO(abg): Do we need thread-safety
 
 	// TODO(abg): Maybe plugins will have command line options. Figure out how
 	// to get those from users and pass to the plugin.
