@@ -11,11 +11,7 @@ import (
 // RemoveUnusedImports is a Transformer that removes unused imports from parsed
 // Go files.
 var RemoveUnusedImports Transformer = func(fset *token.FileSet, f *ast.File) error {
-	unused, err := findUnusedImports(f)
-	if err != nil {
-		return err
-	}
-
+	unused := findUnusedImports(f)
 	for _, spec := range unused {
 		name := ""
 		ipath := strings.Trim(spec.Path.Value, `"`)
@@ -29,22 +25,15 @@ var RemoveUnusedImports Transformer = func(fset *token.FileSet, f *ast.File) err
 	return nil
 }
 
-type unusedImports struct {
-	unused map[string]*ast.ImportSpec // package name -> spec
-	err    error
+type unusedImports map[string]*ast.ImportSpec // package name -> spec
+
+func findUnusedImports(f *ast.File) map[string]*ast.ImportSpec {
+	u := make(unusedImports)
+	ast.Walk(u, f)
+	return map[string]*ast.ImportSpec(u)
 }
 
-func findUnusedImports(f *ast.File) (map[string]*ast.ImportSpec, error) {
-	finder := &unusedImports{unused: make(map[string]*ast.ImportSpec)}
-	ast.Walk(finder, f)
-	return finder.unused, finder.err
-}
-
-func (u *unusedImports) Visit(node ast.Node) ast.Visitor {
-	// Failed. Stop running.
-	if u.err != nil {
-		return nil
-	}
+func (u unusedImports) Visit(node ast.Node) ast.Visitor {
 	if node == nil {
 		return u
 	}
@@ -53,8 +42,11 @@ func (u *unusedImports) Visit(node ast.Node) ast.Visitor {
 	case *ast.ImportSpec:
 		// import foo "..."
 		if v.Name != nil {
-			u.unused[v.Name.Name] = v
-			break
+			name := v.Name.Name
+			if name != "_" && name != "." {
+				u[name] = v
+				break
+			}
 		}
 
 		// import "foo"
@@ -63,13 +55,8 @@ func (u *unusedImports) Visit(node ast.Node) ast.Visitor {
 			break
 		}
 
-		name, err := determinePackageName(ipath)
-		if err != nil {
-			u.err = err
-			return nil
-		}
-
-		u.unused[name] = v
+		name := determinePackageName(ipath)
+		u[name] = v
 	case *ast.SelectorExpr: // foo.Bar
 		ident, ok := v.X.(*ast.Ident)
 		if !ok { // foo is a complex expression
@@ -82,7 +69,7 @@ func (u *unusedImports) Visit(node ast.Node) ast.Visitor {
 		}
 
 		// TODO(abg): Do we need to check globals?
-		delete(u.unused, ident.Name)
+		delete(u, ident.Name)
 	}
 
 	return u
