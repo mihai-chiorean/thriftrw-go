@@ -1,10 +1,13 @@
 package goast
 
-import "go/build"
+import (
+	"go/build"
+	"path/filepath"
+)
 
 // determinePackageName determines the name of the package at the given import
 // path.
-func determinePackageName(importPath string) (string, error) {
+func determinePackageName(importPath string) string {
 	// TODO(abg): This can be a lot faster by using build.FindOnly and parsing one
 	// of the .go files in the directory with parser.PackageClauseOnly set. See
 	// how goimports does this:
@@ -12,7 +15,7 @@ func determinePackageName(importPath string) (string, error) {
 
 	pkg, err := build.Import(importPath, "", 0)
 	if err != nil {
-		return "", err
+		return filepath.Base(importPath)
 	}
-	return pkg.Name, nil
+	return pkg.Name
 }
