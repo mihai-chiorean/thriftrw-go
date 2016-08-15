@@ -115,6 +115,7 @@ func (v Feature) String() string {
 
 type Function struct {
 	Name       string      `json:"name"`
+	ThriftName string      `json:"thriftName"`
 	Arguments  []*Argument `json:"arguments"`
 	ReturnType *Type       `json:"returnType,omitempty"`
 	Exceptions []*Argument `json:"exceptions"`
@@ -149,7 +150,7 @@ func (_List_Argument_ValueList) Close() {
 
 func (v *Function) ToWire() (wire.Value, error) {
 	var (
-		fields [4]wire.Field
+		fields [5]wire.Field
 		i      int = 0
 		w      wire.Value
 		err    error
@@ -160,6 +161,12 @@ func (v *Function) ToWire() (wire.Value, error) {
 	}
 	fields[i] = wire.Field{ID: 1, Value: w}
 	i++
+	w, err = wire.NewValueString(v.ThriftName), error(nil)
+	if err != nil {
+		return w, err
+	}
+	fields[i] = wire.Field{ID: 2, Value: w}
+	i++
 	if v.Arguments == nil {
 		return w, errors.New("field Arguments of Function is required")
 	}
@@ -167,14 +174,14 @@ func (v *Function) ToWire() (wire.Value, error) {
 	if err != nil {
 		return w, err
 	}
-	fields[i] = wire.Field{ID: 2, Value: w}
+	fields[i] = wire.Field{ID: 3, Value: w}
 	i++
 	if v.ReturnType != nil {
 		w, err = v.ReturnType.ToWire()
 		if err != nil {
 			return w, err
 		}
-		fields[i] = wire.Field{ID: 3, Value: w}
+		fields[i] = wire.Field{ID: 4, Value: w}
 		i++
 	}
 	if v.Exceptions != nil {
@@ -182,7 +189,7 @@ func (v *Function) ToWire() (wire.Value, error) {
 		if err != nil {
 			return w, err
 		}
-		fields[i] = wire.Field{ID: 4, Value: w}
+		fields[i] = wire.Field{ID: 5, Value: w}
 		i++
 	}
 	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
@@ -214,6 +221,7 @@ func _List_Argument_Read(l wire.ValueList) ([]*Argument, error) {
 func (v *Function) FromWire(w wire.Value) error {
 	var err error
 	nameIsSet := false
+	thriftNameIsSet := false
 	argumentsIsSet := false
 	for _, field := range w.GetStruct().Fields {
 		switch field.ID {
@@ -226,6 +234,14 @@ func (v *Function) FromWire(w wire.Value) error {
 				nameIsSet = true
 			}
 		case 2:
+			if field.Value.Type() == wire.TBinary {
+				v.ThriftName, err = field.Value.GetString(), error(nil)
+				if err != nil {
+					return err
+				}
+				thriftNameIsSet = true
+			}
+		case 3:
 			if field.Value.Type() == wire.TList {
 				v.Arguments, err = _List_Argument_Read(field.Value.GetList())
 				if err != nil {
@@ -233,14 +249,14 @@ func (v *Function) FromWire(w wire.Value) error {
 				}
 				argumentsIsSet = true
 			}
-		case 3:
+		case 4:
 			if field.Value.Type() == wire.TStruct {
 				v.ReturnType, err = _Type_Read(field.Value)
 				if err != nil {
 					return err
 				}
 			}
-		case 4:
+		case 5:
 			if field.Value.Type() == wire.TList {
 				v.Exceptions, err = _List_Argument_Read(field.Value.GetList())
 				if err != nil {
@@ -252,6 +268,9 @@ func (v *Function) FromWire(w wire.Value) error {
 	if !nameIsSet {
 		return errors.New("field Name of Function is required")
 	}
+	if !thriftNameIsSet {
+		return errors.New("field ThriftName of Function is required")
+	}
 	if !argumentsIsSet {
 		return errors.New("field Arguments of Function is required")
 	}
@@ -259,9 +278,11 @@ func (v *Function) FromWire(w wire.Value) error {
 }
 
 func (v *Function) String() string {
-	var fields [4]string
+	var fields [5]string
 	i := 0
 	fields[i] = fmt.Sprintf("Name: %v", v.Name)
+	i++
+	fields[i] = fmt.Sprintf("ThriftName: %v", v.ThriftName)
 	i++
 	fields[i] = fmt.Sprintf("Arguments: %v", v.Arguments)
 	i++

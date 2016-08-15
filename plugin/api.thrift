@@ -48,9 +48,13 @@ struct Argument {
 
 struct Function {
     1: required string name
-    2: required list<Argument> arguments
-    3: optional Type returnType
-    4: optional list<Argument> exceptions
+    /**
+     * Name of the function as specified in the Thrift file.
+     */
+    2: required string thriftName
+    3: required list<Argument> arguments
+    4: optional Type returnType
+    5: optional list<Argument> exceptions
 }
 
 struct Service {

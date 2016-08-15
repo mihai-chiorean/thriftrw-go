@@ -411,8 +411,9 @@ func buildFunctions(i thriftPackageImporter, fs map[string]*compile.FunctionSpec
 			return nil, err
 		}
 		function := &api.Function{
-			Name:      goCase(spec.Name),
-			Arguments: args,
+			Name:       goCase(spec.Name),
+			ThriftName: spec.Name,
+			Arguments:  args,
 		}
 
 		if spec.ResultSpec != nil {
