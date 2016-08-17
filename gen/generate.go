@@ -293,10 +293,10 @@ func generateModule(m *compile.Module, i thriftPackageImporter, o *Options) erro
 	return nil
 }
 
-func buildModuleMap(i thriftPackageImporter, m *compile.Module) (map[string]int32, map[int32]*api.Module, error) {
-	pathToID := make(map[string]int32)
-	idToModule := make(map[int32]*api.Module)
-	nextID := int32(1)
+func buildModuleMap(i thriftPackageImporter, m *compile.Module) (map[string]api.ModuleID, map[api.ModuleID]*api.Module, error) {
+	pathToID := make(map[string]api.ModuleID)
+	idToModule := make(map[api.ModuleID]*api.Module)
+	nextID := api.ModuleID(1)
 
 	err := m.Walk(func(m *compile.Module) error {
 		id := nextID
@@ -326,19 +326,19 @@ func buildModuleMap(i thriftPackageImporter, m *compile.Module) (map[string]int3
 func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.GenerateRequest, error) {
 	type key struct{ ThriftPath, ServiceName string }
 
-	moduleIds, modules, err := buildModuleMap(i, m)
+	moduleIDs, modules, err := buildModuleMap(i, m)
 	if err != nil {
 		return nil, err
 	}
 
-	nextID := int32(1)
-	serviceIds := make(map[key]int32)
-	services := make(map[int32]*api.Service)
-	var rootServices []int32
+	nextServiceID := api.ServiceID(1)
+	serviceIDs := make(map[key]api.ServiceID)
+	services := make(map[api.ServiceID]*api.Service)
+	var rootServices []api.ServiceID
 
-	var buildService func(spec *compile.ServiceSpec) (int32, error)
-	buildService = func(spec *compile.ServiceSpec) (int32, error) {
-		var parentID *int32
+	var buildService func(spec *compile.ServiceSpec) (api.ServiceID, error)
+	buildService = func(spec *compile.ServiceSpec) (api.ServiceID, error) {
+		var parentID *api.ServiceID
 		if spec.Parent != nil {
 			parent, err := buildService(spec.Parent)
 			if err != nil {
@@ -348,12 +348,12 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 		}
 
 		k := key{ThriftPath: spec.ThriftFile(), ServiceName: spec.Name}
-		if id, ok := serviceIds[k]; ok {
+		if id, ok := serviceIDs[k]; ok {
 			return id, nil
 		}
 
-		id := nextID
-		nextID++
+		id := nextServiceID
+		nextServiceID++
 
 		importPath, err := i.ServicePackage(spec.ThriftFile(), spec.Name)
 		if err != nil {
@@ -375,11 +375,11 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 			Name:      spec.Name,
 			Package:   importPath,
 			Directory: filepath.Join(dir, "service", filepath.Base(importPath)),
-			ParentId:  parentID,
+			ParentID:  parentID,
 			Functions: functions,
-			ModuleId:  moduleIds[spec.ThriftFile()],
+			ModuleID:  moduleIDs[spec.ThriftFile()],
 		}
-		serviceIds[k] = id
+		serviceIDs[k] = id
 		// TODO(abg): This should only be added if it belonged to the root module
 		// if o.NoRecurse is set.
 		rootServices = append(rootServices, id)
