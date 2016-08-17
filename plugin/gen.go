@@ -20,4 +20,7 @@
 
 package plugin
 
-//go:generate thriftrw-go api.thrift
+// This requires the internal "envelope" plugin. Install from the
+// internal/thriftrw-plugin-envelope directory.
+
+//go:generate thriftrw-go -plugins=envelope api.thrift
