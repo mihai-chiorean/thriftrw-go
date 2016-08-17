@@ -1,3 +1,6 @@
+typedef i32 ServiceID
+typedef i32 ModuleID
+
 struct TypeReference {
     1: required string name
     /**
@@ -74,12 +77,12 @@ struct Service {
     /**
      * ID of the parent service in the services map.
      */
-    4: optional i32 parentId
+    4: optional ServiceID parentID
     5: required list<Function> functions
     /**
      * ID of the module which declared this service.
      */
-    6: required i32 moduleId
+    6: required ModuleID moduleID
 }
 
 struct Module {
@@ -101,14 +104,14 @@ struct GenerateRequest {
     /**
      * IDs of services for which code should be generated.
      */
-    1: required list<i32> rootServices
+    1: required list<ServiceID> rootServices
     /**
      * Map of service ID to service.
      *
      * Service ID has no meaning besides to provide a unique identifier for
      * services to reference each other.
      */
-    2: required map<i32, Service> services
+    2: required map<ServiceID, Service> services
     /**
      * List of Thrift modules for which code was generated.
      *
@@ -116,7 +119,7 @@ struct GenerateRequest {
      * zero or more services in it. The module package only exposes the types
      * defined in the Thrift file.
      */
-    3: required map<i32, Module> modules
+    3: required map<ModuleID, Module> modules
 }
 
 struct GenerateResponse {

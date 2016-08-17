@@ -298,16 +298,16 @@ func (v *Function) String() string {
 }
 
 type GenerateRequest struct {
-	RootServices []int32            `json:"rootServices"`
-	Services     map[int32]*Service `json:"services"`
-	Modules      map[int32]*Module  `json:"modules"`
+	RootServices []ServiceID            `json:"rootServices"`
+	Services     map[ServiceID]*Service `json:"services"`
+	Modules      map[ModuleID]*Module   `json:"modules"`
 }
 
-type _List_I32_ValueList []int32
+type _List_ServiceID_ValueList []ServiceID
 
-func (v _List_I32_ValueList) ForEach(f func(wire.Value) error) error {
+func (v _List_ServiceID_ValueList) ForEach(f func(wire.Value) error) error {
 	for _, x := range v {
-		w, err := wire.NewValueI32(x), error(nil)
+		w, err := x.ToWire()
 		if err != nil {
 			return err
 		}
@@ -319,22 +319,22 @@ func (v _List_I32_ValueList) ForEach(f func(wire.Value) error) error {
 	return nil
 }
 
-func (v _List_I32_ValueList) Size() int {
+func (v _List_ServiceID_ValueList) Size() int {
 	return len(v)
 }
 
-func (_List_I32_ValueList) ValueType() wire.Type {
+func (_List_ServiceID_ValueList) ValueType() wire.Type {
 	return wire.TI32
 }
 
-func (_List_I32_ValueList) Close() {
+func (_List_ServiceID_ValueList) Close() {
 }
 
-type _Map_I32_Service_MapItemList map[int32]*Service
+type _Map_ServiceID_Service_MapItemList map[ServiceID]*Service
 
-func (m _Map_I32_Service_MapItemList) ForEach(f func(wire.MapItem) error) error {
+func (m _Map_ServiceID_Service_MapItemList) ForEach(f func(wire.MapItem) error) error {
 	for k, v := range m {
-		kw, err := wire.NewValueI32(k), error(nil)
+		kw, err := k.ToWire()
 		if err != nil {
 			return err
 		}
@@ -350,26 +350,26 @@ func (m _Map_I32_Service_MapItemList) ForEach(f func(wire.MapItem) error) error 
 	return nil
 }
 
-func (m _Map_I32_Service_MapItemList) Size() int {
+func (m _Map_ServiceID_Service_MapItemList) Size() int {
 	return len(m)
 }
 
-func (_Map_I32_Service_MapItemList) KeyType() wire.Type {
+func (_Map_ServiceID_Service_MapItemList) KeyType() wire.Type {
 	return wire.TI32
 }
 
-func (_Map_I32_Service_MapItemList) ValueType() wire.Type {
+func (_Map_ServiceID_Service_MapItemList) ValueType() wire.Type {
 	return wire.TStruct
 }
 
-func (_Map_I32_Service_MapItemList) Close() {
+func (_Map_ServiceID_Service_MapItemList) Close() {
 }
 
-type _Map_I32_Module_MapItemList map[int32]*Module
+type _Map_ModuleID_Module_MapItemList map[ModuleID]*Module
 
-func (m _Map_I32_Module_MapItemList) ForEach(f func(wire.MapItem) error) error {
+func (m _Map_ModuleID_Module_MapItemList) ForEach(f func(wire.MapItem) error) error {
 	for k, v := range m {
-		kw, err := wire.NewValueI32(k), error(nil)
+		kw, err := k.ToWire()
 		if err != nil {
 			return err
 		}
@@ -385,19 +385,19 @@ func (m _Map_I32_Module_MapItemList) ForEach(f func(wire.MapItem) error) error {
 	return nil
 }
 
-func (m _Map_I32_Module_MapItemList) Size() int {
+func (m _Map_ModuleID_Module_MapItemList) Size() int {
 	return len(m)
 }
 
-func (_Map_I32_Module_MapItemList) KeyType() wire.Type {
+func (_Map_ModuleID_Module_MapItemList) KeyType() wire.Type {
 	return wire.TI32
 }
 
-func (_Map_I32_Module_MapItemList) ValueType() wire.Type {
+func (_Map_ModuleID_Module_MapItemList) ValueType() wire.Type {
 	return wire.TStruct
 }
 
-func (_Map_I32_Module_MapItemList) Close() {
+func (_Map_ModuleID_Module_MapItemList) Close() {
 }
 
 func (v *GenerateRequest) ToWire() (wire.Value, error) {
@@ -410,7 +410,7 @@ func (v *GenerateRequest) ToWire() (wire.Value, error) {
 	if v.RootServices == nil {
 		return w, errors.New("field RootServices of GenerateRequest is required")
 	}
-	w, err = wire.NewValueList(_List_I32_ValueList(v.RootServices)), error(nil)
+	w, err = wire.NewValueList(_List_ServiceID_ValueList(v.RootServices)), error(nil)
 	if err != nil {
 		return w, err
 	}
@@ -419,7 +419,7 @@ func (v *GenerateRequest) ToWire() (wire.Value, error) {
 	if v.Services == nil {
 		return w, errors.New("field Services of GenerateRequest is required")
 	}
-	w, err = wire.NewValueMap(_Map_I32_Service_MapItemList(v.Services)), error(nil)
+	w, err = wire.NewValueMap(_Map_ServiceID_Service_MapItemList(v.Services)), error(nil)
 	if err != nil {
 		return w, err
 	}
@@ -428,7 +428,7 @@ func (v *GenerateRequest) ToWire() (wire.Value, error) {
 	if v.Modules == nil {
 		return w, errors.New("field Modules of GenerateRequest is required")
 	}
-	w, err = wire.NewValueMap(_Map_I32_Module_MapItemList(v.Modules)), error(nil)
+	w, err = wire.NewValueMap(_Map_ModuleID_Module_MapItemList(v.Modules)), error(nil)
 	if err != nil {
 		return w, err
 	}
@@ -437,13 +437,19 @@ func (v *GenerateRequest) ToWire() (wire.Value, error) {
 	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
 }
 
-func _List_I32_Read(l wire.ValueList) ([]int32, error) {
+func _ServiceID_Read(w wire.Value) (ServiceID, error) {
+	var x ServiceID
+	err := x.FromWire(w)
+	return x, err
+}
+
+func _List_ServiceID_Read(l wire.ValueList) ([]ServiceID, error) {
 	if l.ValueType() != wire.TI32 {
 		return nil, nil
 	}
-	o := make([]int32, 0, l.Size())
+	o := make([]ServiceID, 0, l.Size())
 	err := l.ForEach(func(x wire.Value) error {
-		i, err := x.GetI32(), error(nil)
+		i, err := _ServiceID_Read(x)
 		if err != nil {
 			return err
 		}
@@ -460,16 +466,16 @@ func _Service_Read(w wire.Value) (*Service, error) {
 	return &v, err
 }
 
-func _Map_I32_Service_Read(m wire.MapItemList) (map[int32]*Service, error) {
+func _Map_ServiceID_Service_Read(m wire.MapItemList) (map[ServiceID]*Service, error) {
 	if m.KeyType() != wire.TI32 {
 		return nil, nil
 	}
 	if m.ValueType() != wire.TStruct {
 		return nil, nil
 	}
-	o := make(map[int32]*Service, m.Size())
+	o := make(map[ServiceID]*Service, m.Size())
 	err := m.ForEach(func(x wire.MapItem) error {
-		k, err := x.Key.GetI32(), error(nil)
+		k, err := _ServiceID_Read(x.Key)
 		if err != nil {
 			return err
 		}
@@ -484,22 +490,28 @@ func _Map_I32_Service_Read(m wire.MapItemList) (map[int32]*Service, error) {
 	return o, err
 }
 
+func _ModuleID_Read(w wire.Value) (ModuleID, error) {
+	var x ModuleID
+	err := x.FromWire(w)
+	return x, err
+}
+
 func _Module_Read(w wire.Value) (*Module, error) {
 	var v Module
 	err := v.FromWire(w)
 	return &v, err
 }
 
-func _Map_I32_Module_Read(m wire.MapItemList) (map[int32]*Module, error) {
+func _Map_ModuleID_Module_Read(m wire.MapItemList) (map[ModuleID]*Module, error) {
 	if m.KeyType() != wire.TI32 {
 		return nil, nil
 	}
 	if m.ValueType() != wire.TStruct {
 		return nil, nil
 	}
-	o := make(map[int32]*Module, m.Size())
+	o := make(map[ModuleID]*Module, m.Size())
 	err := m.ForEach(func(x wire.MapItem) error {
-		k, err := x.Key.GetI32(), error(nil)
+		k, err := _ModuleID_Read(x.Key)
 		if err != nil {
 			return err
 		}
@@ -523,7 +535,7 @@ func (v *GenerateRequest) FromWire(w wire.Value) error {
 		switch field.ID {
 		case 1:
 			if field.Value.Type() == wire.TList {
-				v.RootServices, err = _List_I32_Read(field.Value.GetList())
+				v.RootServices, err = _List_ServiceID_Read(field.Value.GetList())
 				if err != nil {
 					return err
 				}
@@ -531,7 +543,7 @@ func (v *GenerateRequest) FromWire(w wire.Value) error {
 			}
 		case 2:
 			if field.Value.Type() == wire.TMap {
-				v.Services, err = _Map_I32_Service_Read(field.Value.GetMap())
+				v.Services, err = _Map_ServiceID_Service_Read(field.Value.GetMap())
 				if err != nil {
 					return err
 				}
@@ -539,7 +551,7 @@ func (v *GenerateRequest) FromWire(w wire.Value) error {
 			}
 		case 3:
 			if field.Value.Type() == wire.TMap {
-				v.Modules, err = _Map_I32_Module_Read(field.Value.GetMap())
+				v.Modules, err = _Map_ModuleID_Module_Read(field.Value.GetMap())
 				if err != nil {
 					return err
 				}
@@ -1024,13 +1036,31 @@ func (v *Module) String() string {
 	return fmt.Sprintf("Module{%v}", strings.Join(fields[:i], ", "))
 }
 
+type ModuleID int32
+
+func (v ModuleID) ToWire() (wire.Value, error) {
+	x := (int32)(v)
+	return wire.NewValueI32(x), error(nil)
+}
+
+func (v ModuleID) String() string {
+	x := (int32)(v)
+	return fmt.Sprint(x)
+}
+
+func (v *ModuleID) FromWire(w wire.Value) error {
+	x, err := w.GetI32(), error(nil)
+	*v = (ModuleID)(x)
+	return err
+}
+
 type Service struct {
 	Name      string      `json:"name"`
 	Package   string      `json:"package"`
 	Directory string      `json:"directory"`
-	ParentId  *int32      `json:"parentId,omitempty"`
+	ParentID  *ServiceID  `json:"parentID,omitempty"`
 	Functions []*Function `json:"functions"`
-	ModuleId  int32       `json:"moduleId"`
+	ModuleID  ModuleID    `json:"moduleID"`
 }
 
 type _List_Function_ValueList []*Function
@@ -1085,8 +1115,8 @@ func (v *Service) ToWire() (wire.Value, error) {
 	}
 	fields[i] = wire.Field{ID: 3, Value: w}
 	i++
-	if v.ParentId != nil {
-		w, err = wire.NewValueI32(*(v.ParentId)), error(nil)
+	if v.ParentID != nil {
+		w, err = v.ParentID.ToWire()
 		if err != nil {
 			return w, err
 		}
@@ -1102,7 +1132,7 @@ func (v *Service) ToWire() (wire.Value, error) {
 	}
 	fields[i] = wire.Field{ID: 5, Value: w}
 	i++
-	w, err = wire.NewValueI32(v.ModuleId), error(nil)
+	w, err = v.ModuleID.ToWire()
 	if err != nil {
 		return w, err
 	}
@@ -1140,7 +1170,7 @@ func (v *Service) FromWire(w wire.Value) error {
 	packageIsSet := false
 	directoryIsSet := false
 	functionsIsSet := false
-	moduleIdIsSet := false
+	moduleIDIsSet := false
 	for _, field := range w.GetStruct().Fields {
 		switch field.ID {
 		case 1:
@@ -1169,9 +1199,9 @@ func (v *Service) FromWire(w wire.Value) error {
 			}
 		case 4:
 			if field.Value.Type() == wire.TI32 {
-				var x int32
-				x, err = field.Value.GetI32(), error(nil)
-				v.ParentId = &x
+				var x ServiceID
+				x, err = _ServiceID_Read(field.Value)
+				v.ParentID = &x
 				if err != nil {
 					return err
 				}
@@ -1186,11 +1216,11 @@ func (v *Service) FromWire(w wire.Value) error {
 			}
 		case 6:
 			if field.Value.Type() == wire.TI32 {
-				v.ModuleId, err = field.Value.GetI32(), error(nil)
+				v.ModuleID, err = _ModuleID_Read(field.Value)
 				if err != nil {
 					return err
 				}
-				moduleIdIsSet = true
+				moduleIDIsSet = true
 			}
 		}
 	}
@@ -1206,8 +1236,8 @@ func (v *Service) FromWire(w wire.Value) error {
 	if !functionsIsSet {
 		return errors.New("field Functions of Service is required")
 	}
-	if !moduleIdIsSet {
-		return errors.New("field ModuleId of Service is required")
+	if !moduleIDIsSet {
+		return errors.New("field ModuleID of Service is required")
 	}
 	return nil
 }
@@ -1221,15 +1251,33 @@ func (v *Service) String() string {
 	i++
 	fields[i] = fmt.Sprintf("Directory: %v", v.Directory)
 	i++
-	if v.ParentId != nil {
-		fields[i] = fmt.Sprintf("ParentId: %v", *(v.ParentId))
+	if v.ParentID != nil {
+		fields[i] = fmt.Sprintf("ParentID: %v", *(v.ParentID))
 		i++
 	}
 	fields[i] = fmt.Sprintf("Functions: %v", v.Functions)
 	i++
-	fields[i] = fmt.Sprintf("ModuleId: %v", v.ModuleId)
+	fields[i] = fmt.Sprintf("ModuleID: %v", v.ModuleID)
 	i++
 	return fmt.Sprintf("Service{%v}", strings.Join(fields[:i], ", "))
+}
+
+type ServiceID int32
+
+func (v ServiceID) ToWire() (wire.Value, error) {
+	x := (int32)(v)
+	return wire.NewValueI32(x), error(nil)
+}
+
+func (v ServiceID) String() string {
+	x := (int32)(v)
+	return fmt.Sprint(x)
+}
+
+func (v *ServiceID) FromWire(w wire.Value) error {
+	x, err := w.GetI32(), error(nil)
+	*v = (ServiceID)(x)
+	return err
 }
 
 type SimpleType int32
