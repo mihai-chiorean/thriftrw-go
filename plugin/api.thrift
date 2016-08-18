@@ -69,9 +69,9 @@ struct Service {
     /**
      * Path to the directory containing code for this service.
      *
-     * The path is relative to the top-most directory ThriftRW has access to.
-     * Plugins SHOULD NOT make any assumptions about the absolute location of
-     * the files.
+     * The path is relative to the output directory into which ThriftRW is
+     * generating code. Plugins SHOULD NOT make any assumptions about the
+     * absolute location of the directory.
      */
     3: required string directory
     /**
@@ -93,9 +93,9 @@ struct Module {
     /**
      * Path to the directory containing the code for this module.
      *
-     * The path is relative to the top-most directory ThriftRW has access to.
-     * Plugins SHOULD NOT make any assumptions about the absolute location of
-     * the files.
+     * The path is relative to the output directory into which ThriftRW is
+     * generating code. Plugins SHOULD NOT make any assumptions about the
+     * absolute location of the directory.
      */
     2: required string directory
 }
@@ -132,7 +132,12 @@ struct GenerateResponse {
      *
      * All paths MUST be relative to the top-most directory ThriftRW has
      * access to. Plugins SHOULD NOT make any assumptions about the absolute
-     * location of the files. The paths MUST NOT contain the string "..".
+     *
+     * All paths MUST be relative to the output directory into which ThriftRW
+     * is generating code. Plugins SHOULD NOT make any assumptions about the
+     * absolute location of the directory.
+     *
+     * The paths MUST NOT contain the string "..".
      */
     1: optional map<string, binary> files
 }
