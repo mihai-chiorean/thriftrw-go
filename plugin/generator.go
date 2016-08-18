@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
+	"sort"
 	"text/template"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -196,8 +197,13 @@ func GoFileFromTemplate(filename, tmpl string, data interface{}, opts ...Templat
 			"Use the import function.")
 	}
 
-	for path, name := range imports {
-		astutil.AddNamedImport(fset, f, name, path)
+	importPaths := make([]string, 0, len(imports))
+	for path := range imports {
+		importPaths = append(importPaths, path)
+	}
+	sort.Strings(importPaths)
+	for _, path := range importPaths {
+		astutil.AddNamedImport(fset, f, imports[path], path)
 	}
 
 	cfg := printer.Config{

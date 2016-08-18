@@ -2,11 +2,11 @@ package plugin
 
 import (
 	"bytes"
-	"fmt"
+	"github.com/thriftrw/thriftrw-go/envelope"
+	"github.com/thriftrw/thriftrw-go/wire"
 	"github.com/thriftrw/thriftrw-go/protocol"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
-	"github.com/thriftrw/thriftrw-go/wire"
-	"github.com/thriftrw/thriftrw-go/envelope"
+	"fmt"
 )
 
 // Protocol is the Thrift protocol used to deserialize and serialize requests.
