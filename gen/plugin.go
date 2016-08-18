@@ -21,27 +21,21 @@
 package gen
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/thriftrw/thriftrw-go/envelope"
 	"github.com/thriftrw/thriftrw-go/internal/frame"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 	"github.com/thriftrw/thriftrw-go/plugin/api/service/plugin"
-	"github.com/thriftrw/thriftrw-go/protocol"
-	"github.com/thriftrw/thriftrw-go/wire"
 )
 
 const (
 	_pluginExecPrefix = "thriftrw-plugin-"
 	apiVersion        = "1"
 )
-
-var _proto = protocol.Binary
 
 // Plug is the plugin API.
 type Plug interface {
@@ -164,7 +158,7 @@ type Plugin struct {
 	cmd    *exec.Cmd
 	stdout io.ReadCloser
 	stdin  io.WriteCloser
-	client *frame.Client
+	client plugin.Interface
 }
 
 // NewPlugin builds a new generator plugin.
@@ -207,27 +201,21 @@ func (p *Plugin) Open() error {
 		return fmt.Errorf("failed to allocate stdin pipe: %v", err)
 	}
 
-	p.client = frame.NewClient(p.stdin, p.stdout)
+	p.client = plugin.NewClient(frame.NewClient(p.stdin, p.stdout).Send)
 
 	if err := p.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start plugin %q: %v", p.name, err)
 	}
 
-	var r plugin.HandshakeResult
-	if err := p.send(&plugin.HandshakeArgs{Request: &api.HandshakeRequest{}}, &r); err != nil {
+	hr, err := p.client.Handshake(&api.HandshakeRequest{})
+	if err != nil {
 		return fmt.Errorf("handshake failed: %v", err)
 	}
-	if r.UnsupportedVersionError != nil {
-		return r.UnsupportedVersionError
-	}
-	if r.HandshakeError != nil {
-		return r.HandshakeError
-	}
 
-	hr := r.Success
 	if hr.Name != p.name {
 		return fmt.Errorf("plugin name mismatch: expected %q but got %q", p.name, hr.Name)
 	}
+
 	if hr.ApiVersion != apiVersion {
 		return fmt.Errorf("API version mismatch: expected %q but got %q", apiVersion, hr.ApiVersion)
 	}
@@ -243,36 +231,7 @@ func (p *Plugin) Generate(req *api.GenerateRequest) (*api.GenerateResponse, erro
 		panic(fmt.Sprintf("Generate(%v) called on plugin %q which is not running", req, p.name))
 	}
 
-	var r plugin.GenerateResult
-	if err := p.send(&plugin.GenerateArgs{Request: req}, &r); err != nil {
-		return nil, err
-	}
-	if r.GeneratorError != nil {
-		return nil, r.GeneratorError
-	}
-	return r.Success, nil
-}
-
-type response interface {
-	FromWire(wire.Value) error
-}
-
-func (p *Plugin) send(req envelope.Enveloper, res response) error {
-	var buff bytes.Buffer
-	if err := envelope.Write(_proto, &buff, 1, req); err != nil {
-		return err
-	}
-
-	resBody, err := p.client.Send(buff.Bytes())
-	if err != nil {
-		return err
-	}
-
-	body, _, err := envelope.ReadReply(_proto, bytes.NewReader(resBody))
-	if err != nil {
-		return err
-	}
-	return res.FromWire(body)
+	return p.client.Generate(req)
 }
 
 // Close closes the plugin.
@@ -282,7 +241,7 @@ func (p *Plugin) Close() error {
 	}
 
 	if p.client != nil {
-		if err := p.send(&plugin.GoodbyeArgs{}, &plugin.GoodbyeResult{}); err != nil {
+		if err := p.client.Goodbye(); err != nil {
 			return err
 		}
 		p.client = nil
