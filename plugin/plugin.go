@@ -21,7 +21,6 @@
 package plugin
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -30,6 +29,7 @@ import (
 	"github.com/thriftrw/thriftrw-go/internal/multiplex"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 	"github.com/thriftrw/thriftrw-go/plugin/api/service/plugin"
+	"github.com/thriftrw/thriftrw-go/plugin/api/service/servicegenerator"
 	"github.com/thriftrw/thriftrw-go/protocol"
 )
 
@@ -37,17 +37,12 @@ const _fastPathFrameSize = 10 * 1024 * 1024 // 10 MB
 
 var _proto = protocol.Binary
 
-// Generator provides the Generator feature for ThriftRW>
-type Generator interface {
-	Generate(*api.GenerateRequest) (*api.GenerateResponse, error)
-}
-
 // Plugin defines a plugin.
 type Plugin struct {
 	Name string
 
-	// If non-nil, Generator generates arbitrary code for services.
-	Generator Generator
+	// Implement this to generate arbitrary code for services.
+	ServiceGenerator api.ServiceGenerator
 }
 
 // Main serves the given plugin. It is the entry point to the plugin system.
@@ -58,33 +53,33 @@ func Main(p *Plugin) {
 	// 4-byte big-endian encoded length prefix. Envelope names contain method
 	// names prefixed with the service name and a ":"
 
+	mainHandler := multiplex.NewHandler()
+
 	var features []api.Feature
-	if p.Generator != nil {
-		features = append(features, api.FeatureGenerator)
+	if p.ServiceGenerator != nil {
+		features = append(features, api.FeatureServiceGenerator)
+		mainHandler.Put("ServiceGenerator", servicegenerator.NewHandler(p.ServiceGenerator))
 	}
 
 	server := frame.NewServer(os.Stdin, os.Stdout)
-	pluginHandler := plugin.NewHandler(handler{
+	mainHandler.Put("Plugin", plugin.NewHandler(pluginHandler{
 		server:   server,
 		plugin:   p,
 		features: features,
-	})
-
-	mainHandler := multiplex.NewHandler()
-	mainHandler.Put("Plugin", pluginHandler)
+	}))
 
 	if err := server.Serve(envelope.NewServer(_proto, mainHandler)); err != nil {
 		log.Fatalf("plugin server failed with error: %v", err)
 	}
 }
 
-type handler struct {
+type pluginHandler struct {
 	server   *frame.Server
 	plugin   *Plugin
 	features []api.Feature
 }
 
-func (h handler) Handshake(request *api.HandshakeRequest) (*api.HandshakeResponse, error) {
+func (h pluginHandler) Handshake(request *api.HandshakeRequest) (*api.HandshakeResponse, error) {
 	return &api.HandshakeResponse{
 		Name:       h.plugin.Name,
 		ApiVersion: Version,
@@ -92,15 +87,7 @@ func (h handler) Handshake(request *api.HandshakeRequest) (*api.HandshakeRespons
 	}, nil
 }
 
-func (h handler) Goodbye() error {
+func (h pluginHandler) Goodbye() error {
 	h.server.Stop()
 	return nil
-}
-
-func (h handler) Generate(req *api.GenerateRequest) (*api.GenerateResponse, error) {
-	if h.plugin.Generator == nil {
-		return nil, fmt.Errorf("I don't implement Generator") // TODO error handling
-	}
-
-	return h.plugin.Generator.Generate(req)
 }

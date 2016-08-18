@@ -18,46 +18,6 @@ func NewClient(t func(wire.Envelope) (wire.Envelope, error)) api.Plugin {
 	}
 }
 
-func (c *client) Generate(
-	_Request *api.GenerateRequest,
-) (success *api.GenerateResponse, err error) {
-	args := GenerateHelper.Args(_Request)
-
-	var body wire.Value
-	body, err = args.ToWire()
-	if err != nil {
-		return
-	}
-
-	var envelope wire.Envelope
-	envelope, err = c.send(wire.Envelope{
-		Name:  "generate",
-		Type:  wire.Call,
-		Value: body,
-	})
-	if err != nil {
-		return
-	}
-
-	switch {
-	case envelope.Type == wire.Exception:
-		// TODO(abg): use envelope exceptions
-		err = fmt.Errorf("envelope error: %v", envelope.Value)
-		return
-	case envelope.Type != wire.Reply:
-		err = fmt.Errorf("unknown envelope type for reply, got %v", envelope.Type)
-		return
-	}
-
-	var result GenerateResult
-	if err = result.FromWire(envelope.Value); err != nil {
-		return
-	}
-
-	success, err = GenerateHelper.UnwrapResponse(&result)
-	return
-}
-
 func (c *client) Goodbye() (err error) {
 	args := GoodbyeHelper.Args()
 
@@ -158,24 +118,6 @@ func (h Handler) Handle(envelope wire.Envelope) (wire.Envelope, error) {
 	}
 
 	switch envelope.Name {
-
-	case "generate":
-		var args GenerateArgs
-		if err := args.FromWire(envelope.Value); err != nil {
-			return responseEnvelope, err
-		}
-
-		result, err := GenerateHelper.WrapResponse(
-			h.impl.Generate(args.Request),
-		)
-		if err != nil {
-			return responseEnvelope, err
-		}
-
-		responseEnvelope.Value, err = result.ToWire()
-		if err != nil {
-			return responseEnvelope, err
-		}
 
 	case "goodbye":
 		var args GoodbyeArgs

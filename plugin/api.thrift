@@ -100,50 +100,7 @@ struct Module {
     2: required string directory
 }
 
-struct GenerateRequest {
-    /**
-     * IDs of services for which code should be generated.
-     *
-     * Note that the services map contains information about the services
-     * being generated and their transitive dependencies. Code should only be
-     * generated for service IDs listed here.
-     */
-    1: required list<ServiceID> rootServices
-    /**
-     * Map of service ID to service.
-     *
-     * Service ID has no meaning besides to provide a unique identifier for
-     * services to reference each other.
-     */
-    2: required map<ServiceID, Service> services
-    /**
-     * List of Thrift modules for which code was generated.
-     *
-     * A module corresponds to a single Thrift file and which may have contained
-     * zero or more services in it. The module package only exposes the types
-     * defined in the Thrift file.
-     */
-    3: required map<ModuleID, Module> modules
-}
-
-struct GenerateResponse {
-    /**
-     * Map of file path to file contents.
-     *
-     * All paths MUST be relative to the top-most directory ThriftRW has
-     * access to. Plugins SHOULD NOT make any assumptions about the absolute
-     *
-     * All paths MUST be relative to the output directory into which ThriftRW
-     * is generating code. Plugins SHOULD NOT make any assumptions about the
-     * absolute location of the directory.
-     *
-     * The paths MUST NOT contain the string "..".
-     */
-    1: optional map<string, binary> files
-}
-
-struct HandshakeRequest {
-}
+//////////////////////////////////////////////////////////////////////////////
 
 /**
  * Feature specifies the features of the plugin. ThriftRW will only call
@@ -151,13 +108,15 @@ struct HandshakeRequest {
  */
 enum Feature {
     /**
-     * Plugins that generate arbitrary code for services should use this
-     * feature.
+     * To generate arbitrary code for services, provide this feature and
+     * implement the ServiceGenerator service.
      */
-    GENERATOR = 1,
-    // TODO(abg): Rename to SERVICE_GENERATOR
+    SERVICE_GENERATOR = 1,
 
     // TODO: TAGGER for struct-tagging plugins
+}
+
+struct HandshakeRequest {
 }
 
 struct HandshakeResponse {
@@ -183,10 +142,6 @@ exception UnsupportedVersionError {
     1: optional string message
 }
 
-exception GeneratorError {
-    1: optional string message
-}
-
 service Plugin {
     HandshakeResponse handshake(1: HandshakeRequest request)
         throws (1: UnsupportedVersionError unsupportedVersionError,
@@ -197,16 +152,64 @@ service Plugin {
      * plugin process know that it's safe to exit.
      */
     void goodbye()
-
-    /**
-     * Generates arbitrary code for services.
-     *
-     * This MUST be implemented if the GENERATOR feature is enabled.
-     */
-    GenerateResponse generate(1: GenerateRequest request)
-        throws (1: GeneratorError generatorError)
-    // TODO: more exception types?
 }
 
-// TODO(abg): We should have a separate service for each Feature. This way,
-// plugins only implement the services they care about.
+struct GenerateServiceRequest {
+    /**
+     * IDs of services for which code should be generated.
+     *
+     * Note that the services map contains information about the services
+     * being generated and their transitive dependencies. Code should only be
+     * generated for service IDs listed here.
+     */
+    1: required list<ServiceID> rootServices
+    /**
+     * Map of service ID to service.
+     *
+     * Service ID has no meaning besides to provide a unique identifier for
+     * services to reference each other.
+     */
+    2: required map<ServiceID, Service> services
+    /**
+     * List of Thrift modules for which code was generated.
+     *
+     * A module corresponds to a single Thrift file and which may have contained
+     * zero or more services in it. The module package only exposes the types
+     * defined in the Thrift file.
+     */
+    3: required map<ModuleID, Module> modules
+}
+
+struct GenerateServiceResponse {
+    /**
+     * Map of file path to file contents.
+     *
+     * All paths MUST be relative to the top-most directory ThriftRW has
+     * access to. Plugins SHOULD NOT make any assumptions about the absolute
+     *
+     * All paths MUST be relative to the output directory into which ThriftRW
+     * is generating code. Plugins SHOULD NOT make any assumptions about the
+     * absolute location of the directory.
+     *
+     * The paths MUST NOT contain the string "..".
+     */
+    1: optional map<string, binary> files
+}
+
+exception ServiceGeneratorError {
+    1: optional string message
+}
+
+/**
+ * Plugins that generate arbitrary code for services implement this.
+ *
+ * This MUST be implemented if the SERVICE_GENERATOR feature is enabled.
+ */
+service ServiceGenerator {
+    /**
+     * Generates arbitrary code for services.
+     */
+    GenerateServiceResponse generate(1: GenerateServiceRequest request)
+        throws (1: ServiceGeneratorError generatorError)
+    // TODO: more exception types?
+}
