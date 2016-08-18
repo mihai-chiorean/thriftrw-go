@@ -103,6 +103,10 @@ struct Module {
 struct GenerateRequest {
     /**
      * IDs of services for which code should be generated.
+     *
+     * Note that the services map contains information about the services
+     * being generated and their transitive dependencies. Code should only be
+     * generated for service IDs listed here.
      */
     1: required list<ServiceID> rootServices
     /**
@@ -129,8 +133,6 @@ struct GenerateResponse {
      * All paths MUST be relative to the top-most directory ThriftRW has
      * access to. Plugins SHOULD NOT make any assumptions about the absolute
      * location of the files. The paths MUST NOT contain the string "..".
-     *
-     * Go files in the output WILL be reformatted by ThriftRW.
      */
     1: optional map<string, binary> files
 }
