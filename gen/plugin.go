@@ -158,7 +158,7 @@ type Plugin struct {
 	cmd    *exec.Cmd
 	stdout io.ReadCloser
 	stdin  io.WriteCloser
-	client plugin.Interface
+	client api.Plugin
 }
 
 // NewPlugin builds a new generator plugin.

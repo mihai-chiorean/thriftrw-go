@@ -12,26 +12,13 @@ import (
 // Protocol is the Thrift protocol used to deserialize and serialize requests.
 var Protocol = protocol.Binary
 
-// Interface provides the Plugin service.
-type Interface interface {
-	Generate(
-		Request *api.GenerateRequest,
-	) (*api.GenerateResponse, error)
-
-	Goodbye() error
-
-	Handshake(
-		Request *api.HandshakeRequest,
-	) (*api.HandshakeResponse, error)
-}
-
 // Client implements a Plugin client.
 type client struct {
 	send func([]byte) ([]byte, error)
 }
 
 // NewClient builds a new Plugin client.
-func NewClient(t func([]byte) ([]byte, error)) Interface {
+func NewClient(t func([]byte) ([]byte, error)) api.Plugin {
 	return &client{
 		send: t,
 	}
@@ -130,11 +117,11 @@ func (c *client) Handshake(
 
 // Handler serves an implementation of the Plugin service.
 type Handler struct {
-	impl Interface
+	impl api.Plugin
 }
 
 // NewHandler builds a new Plugin handler.
-func NewHandler(service Interface) Handler {
+func NewHandler(service api.Plugin) Handler {
 	return Handler{
 		impl: service,
 	}
