@@ -27,6 +27,7 @@ import (
 
 	"github.com/thriftrw/thriftrw-go/internal/envelope"
 	"github.com/thriftrw/thriftrw-go/internal/frame"
+	"github.com/thriftrw/thriftrw-go/internal/multiplex"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 	"github.com/thriftrw/thriftrw-go/plugin/api/service/plugin"
 	"github.com/thriftrw/thriftrw-go/protocol"
@@ -54,7 +55,8 @@ type Plugin struct {
 func Main(p *Plugin) {
 	// The plugin communicates with the ThriftRW process over stdout and stdin
 	// of this process. Requests and responses are Thrift envelopes with a
-	// 4-byte big-endian encoded length prefix.
+	// 4-byte big-endian encoded length prefix. Envelope names contain method
+	// names prefixed with the service name and a ":"
 
 	var features []api.Feature
 	if p.Generator != nil {
@@ -68,7 +70,10 @@ func Main(p *Plugin) {
 		features: features,
 	})
 
-	if err := server.Serve(envelope.NewServer(_proto, pluginHandler)); err != nil {
+	mainHandler := multiplex.NewHandler()
+	mainHandler.Put("Plugin", pluginHandler)
+
+	if err := server.Serve(envelope.NewServer(_proto, mainHandler)); err != nil {
 		log.Fatalf("plugin server failed with error: %v", err)
 	}
 }

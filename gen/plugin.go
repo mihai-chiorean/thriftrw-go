@@ -29,6 +29,7 @@ import (
 
 	"github.com/thriftrw/thriftrw-go/internal/envelope"
 	"github.com/thriftrw/thriftrw-go/internal/frame"
+	"github.com/thriftrw/thriftrw-go/internal/multiplex"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 	"github.com/thriftrw/thriftrw-go/plugin/api/service/plugin"
 	"github.com/thriftrw/thriftrw-go/protocol"
@@ -205,7 +206,9 @@ func (p *Plugin) Open() error {
 		return fmt.Errorf("failed to allocate stdin pipe: %v", err)
 	}
 
-	p.client = plugin.NewClient(envelope.NewClient(_proto, frame.NewClient(p.stdin, p.stdout)).Send)
+	p.client = plugin.NewClient(
+		multiplex.NewClient("Plugin",
+			envelope.NewClient(_proto, frame.NewClient(p.stdin, p.stdout))).Send)
 
 	if err := p.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start plugin %q: %v", p.name, err)
