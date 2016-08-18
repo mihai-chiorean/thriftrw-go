@@ -15,14 +15,14 @@ import (
 
 func main() {
 	plugin.Main(&plugin.Plugin{
-		Name:      "envelope",
-		Generator: generator{},
+		Name:             "envelope",
+		ServiceGenerator: generator{},
 	})
 }
 
 type generator struct{}
 
-func (generator) Generate(req *api.GenerateRequest) (*api.GenerateResponse, error) {
+func (generator) Generate(req *api.GenerateServiceRequest) (*api.GenerateServiceResponse, error) {
 	files := make(map[string][]byte)
 	for _, serviceID := range req.RootServices {
 		service := req.Services[serviceID]
@@ -30,7 +30,7 @@ func (generator) Generate(req *api.GenerateRequest) (*api.GenerateResponse, erro
 
 		templateData := struct {
 			Service *api.Service
-			Request *api.GenerateRequest
+			Request *api.GenerateServiceRequest
 		}{Service: service, Request: req}
 
 		var (
@@ -54,12 +54,12 @@ func (generator) Generate(req *api.GenerateRequest) (*api.GenerateResponse, erro
 			return nil, err
 		}
 	}
-	return &api.GenerateResponse{Files: files}, nil
+	return &api.GenerateServiceResponse{Files: files}, nil
 }
 
 // convenience function because "index .Request.Services .Service.ParentID"
 // doesn't work. Index expects a ServiceID, not *ServiceID.
-func getService(req *api.GenerateRequest, id api.ServiceID) *api.Service {
+func getService(req *api.GenerateServiceRequest, id api.ServiceID) *api.Service {
 	return req.Services[id]
 }
 

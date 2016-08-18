@@ -32,6 +32,7 @@ import (
 	"github.com/thriftrw/thriftrw-go/internal/multiplex"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 	"github.com/thriftrw/thriftrw-go/plugin/api/service/plugin"
+	"github.com/thriftrw/thriftrw-go/plugin/api/service/servicegenerator"
 	"github.com/thriftrw/thriftrw-go/protocol"
 )
 
@@ -49,8 +50,7 @@ type Plug interface {
 	Open() error
 	Close() error
 
-	Generate(req *api.GenerateRequest) (*api.GenerateResponse, error)
-	// TODO(abg): This should be auto generated
+	ServiceGenerator() api.ServiceGenerator
 }
 
 // Combines a list of Plugs into a single Plug. Requests are sent to all
@@ -98,15 +98,24 @@ func (ps multiPlug) Close() error {
 	return nil
 }
 
-func (ps multiPlug) Generate(req *api.GenerateRequest) (*api.GenerateResponse, error) {
-	// TODO(abg): this should call only those plugins which requested the
-	// feature
+func (ps multiPlug) ServiceGenerator() api.ServiceGenerator {
+	// TODO filter out plugs that don't provide ServiceGenerators
+	return multiServiceGenerator(ps)
+}
+
+type multiServiceGenerator []Plug
+
+func (ps multiServiceGenerator) Generate(req *api.GenerateServiceRequest) (*api.GenerateServiceResponse, error) {
 	var errs []error
 
 	files := make(map[string][]byte)
 	usedPaths := make(map[string]string)
 	for _, p := range ps {
-		res, err := p.Generate(req)
+		sg := p.ServiceGenerator()
+		if sg == nil {
+			continue
+		}
+		res, err := sg.Generate(req)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to call plugin %q: %v", p.Name(), err))
 			continue
@@ -134,7 +143,7 @@ func (ps multiPlug) Generate(req *api.GenerateRequest) (*api.GenerateResponse, e
 		return nil, multiErr(errs)
 	}
 
-	return &api.GenerateResponse{Files: files}, nil
+	return &api.GenerateServiceResponse{Files: files}, nil
 }
 
 type multiErr []error
@@ -158,12 +167,14 @@ type Plugin struct {
 
 	running  bool
 	path     string
-	features []api.Feature
+	features map[api.Feature]struct{}
 
 	cmd    *exec.Cmd
 	stdout io.ReadCloser
 	stdin  io.WriteCloser
-	client api.Plugin
+
+	client    api.Plugin
+	envClient envelope.Client
 }
 
 // NewPlugin builds a new generator plugin.
@@ -206,14 +217,12 @@ func (p *Plugin) Open() error {
 		return fmt.Errorf("failed to allocate stdin pipe: %v", err)
 	}
 
-	p.client = plugin.NewClient(
-		multiplex.NewClient("Plugin",
-			envelope.NewClient(_proto, frame.NewClient(p.stdin, p.stdout))).Send)
-
 	if err := p.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start plugin %q: %v", p.name, err)
 	}
 
+	p.envClient = envelope.NewClient(_proto, frame.NewClient(p.stdin, p.stdout))
+	p.client = plugin.NewClient(multiplex.NewClient("Plugin", p.envClient).Send)
 	hr, err := p.client.Handshake(&api.HandshakeRequest{})
 	if err != nil {
 		return fmt.Errorf("handshake failed: %v", err)
@@ -227,18 +236,23 @@ func (p *Plugin) Open() error {
 		return fmt.Errorf("API version mismatch: expected %q but got %q", apiVersion, hr.ApiVersion)
 	}
 
-	p.features = hr.Features // TODO(abg): features should be a map
+	p.features = make(map[api.Feature]struct{}, len(hr.Features))
+	for _, f := range hr.Features {
+		p.features[f] = struct{}{}
+	}
+
 	p.running = true
 	return nil
 }
 
-// Generate sends a GenerateRequest to this plugin and gits its response.
-func (p *Plugin) Generate(req *api.GenerateRequest) (*api.GenerateResponse, error) {
-	if !p.running {
-		panic(fmt.Sprintf("Generate(%v) called on plugin %q which is not running", req, p.name))
+// ServiceGenerator returns the ServiceGenerator for this plugin or nil if
+// this plugin doesn't implement this feature.
+func (p *Plugin) ServiceGenerator() api.ServiceGenerator {
+	if _, ok := p.features[api.FeatureServiceGenerator]; !ok {
+		return nil
 	}
 
-	return p.client.Generate(req)
+	return servicegenerator.NewClient(multiplex.NewClient("ServiceGenerator", p.envClient).Send)
 }
 
 // Close closes the plugin.
@@ -252,6 +266,7 @@ func (p *Plugin) Close() error {
 			return err
 		}
 		p.client = nil
+		p.envClient = nil
 	}
 
 	if p.stdout != nil {

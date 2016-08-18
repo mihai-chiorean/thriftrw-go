@@ -106,7 +106,7 @@ func Generate(m *compile.Module, o *Options) error {
 			return err
 		}
 
-		res, err := plug.Generate(req)
+		res, err := plug.ServiceGenerator().Generate(req)
 		if err != nil {
 			return err
 		}
@@ -307,7 +307,7 @@ func buildModuleMap(i thriftPackageImporter, m *compile.Module) (map[string]api.
 	return pathToID, idToModule, err
 }
 
-func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.GenerateRequest, error) {
+func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.GenerateServiceRequest, error) {
 	type key struct{ ThriftPath, ServiceName string }
 
 	moduleIDs, modules, err := buildModuleMap(i, m)
@@ -378,7 +378,7 @@ func buildGenerateRequest(i thriftPackageImporter, m *compile.Module) (*api.Gene
 
 	// TODO(abg): Use o.NoRecurse to decide what the root services should be.
 
-	return &api.GenerateRequest{
+	return &api.GenerateServiceRequest{
 		RootServices: rootServices,
 		Services:     services,
 		Modules:      modules,
