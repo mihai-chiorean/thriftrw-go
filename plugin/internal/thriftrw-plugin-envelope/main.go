@@ -7,6 +7,7 @@ package main
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/thriftrw/thriftrw-go/plugin"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
@@ -25,17 +26,33 @@ func (generator) Generate(req *api.GenerateRequest) (*api.GenerateResponse, erro
 	files := make(map[string][]byte)
 	for _, serviceID := range req.RootServices {
 		service := req.Services[serviceID]
-		path := filepath.Join(service.Directory, "envelope.go")
+		module := req.Modules[service.ModuleID]
 
-		contents, err := plugin.GoFileFromTemplate(path, serviceTemplate, struct {
+		templateData := struct {
 			Service *api.Service
 			Request *api.GenerateRequest
-		}{Service: service, Request: req}, templateOptions...)
+		}{Service: service, Request: req}
+
+		var (
+			err       error
+			ifaceOpts []plugin.TemplateOption
+		)
+
+		ifacePath := filepath.Join(module.Directory, strings.ToLower(service.Name)+".go")
+		ifaceOpts = append(ifaceOpts, templateOptions...)
+		ifaceOpts = append(ifaceOpts, plugin.GoFileImportPath(module.Package))
+		files[ifacePath], err = plugin.GoFileFromTemplate(
+			ifacePath, interfaceTemplate, templateData, ifaceOpts...)
 		if err != nil {
 			return nil, err
 		}
 
-		files[path] = contents
+		envPath := filepath.Join(service.Directory, "envelope.go")
+		files[envPath], err = plugin.GoFileFromTemplate(
+			envPath, serviceTemplate, templateData, templateOptions...)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &api.GenerateResponse{Files: files}, nil
 }
@@ -51,22 +68,19 @@ var templateOptions = []plugin.TemplateOption{
 	plugin.TemplateFunc("getService", getService),
 }
 
-const serviceTemplate = `
-package <basename .Service.Package>
+const interfaceTemplate = `
+<$module := index .Request.Modules .Service.ModuleID>
+package <basename $module.Package>
 
-<$bytes    := import "bytes">
-<$protocol := import "github.com/thriftrw/thriftrw-go/protocol">
-<$envelope := import "github.com/thriftrw/thriftrw-go/envelope">
-<$wire     := import "github.com/thriftrw/thriftrw-go/wire">
-
-// Protocol is the Thrift protocol used to deserialize and serialize requests.
-var Protocol = <$protocol>.Binary
-
-// Interface provides the <.Service.Name> service.
-type Interface interface {
+type <.Service.Name> interface {
 	<if .Service.ParentID>
 		<$parent := getService .Request .Service.ParentID>
-		<import $parent.Package>.Interface
+		<if eq $parent.ModuleID .Service.ModuleID>
+			<$parent.Name>
+		<else>
+			<$parentModule := index .Request.Modules $parent.ModuleID>
+			<import $parentModule.Package>.<$parent.Name>
+		<end>
 	<end>
 
 	<range .Service.Functions>
@@ -75,23 +89,37 @@ type Interface interface {
 		) <if .ReturnType>(<formatType .ReturnType>, error)<else>error<end>
 	<end>
 }
+`
+
+const serviceTemplate = `
+package <basename .Service.Package>
+
+<$bytes    := import "bytes">
+<$protocol := import "github.com/thriftrw/thriftrw-go/protocol">
+<$envelope := import "github.com/thriftrw/thriftrw-go/envelope">
+<$wire     := import "github.com/thriftrw/thriftrw-go/wire">
+<$module   := import (index .Request.Modules .Service.ModuleID).Package>
+
+// Protocol is the Thrift protocol used to deserialize and serialize requests.
+var Protocol = <$protocol>.Binary
 
 // Client implements a <.Service.Name> client.
 type client struct {
 	<if .Service.ParentID>
 		<$parent := getService .Request .Service.ParentID>
-		<import $parent.Package>.Interface
+		<$parentModule := index .Request.Modules $parent.ModuleID>
+		<import $parentModule.Package>.<$parent.Name>
 	<end>
 	send func([]byte) ([]byte, error)
 }
 
 // NewClient builds a new <.Service.Name> client.
-func NewClient(t func([]byte) ([]byte, error)) Interface {
+func NewClient(t func([]byte) ([]byte, error)) <$module>.<.Service.Name> {
 	return &client{
 		send: t,
 		<if .Service.ParentID>
 			<$parent := getService .Request .Service.ParentID>
-			Interface: <import $parent.Package>.NewClient(t),
+			<$parent.Name>: <import $parent.Package>.NewClient(t),
 		<end>
 	}
 }
@@ -131,7 +159,8 @@ func (c *client) <.Name>(<range .Arguments>
 
 // Handler serves an implementation of the <.Service.Name> service.
 type Handler struct {
-	impl Interface
+	impl <$module>.<.Service.Name>
+
 	<if .Service.ParentID>
 		<$parent := getService .Request .Service.ParentID>
 		parent <import $parent.Package>.Handler
@@ -139,7 +168,7 @@ type Handler struct {
 }
 
 // NewHandler builds a new <.Service.Name> handler.
-func NewHandler(service Interface) Handler {
+func NewHandler(service <$module>.<.Service.Name>) Handler {
 	return Handler{
 		impl: service,
 		<if .Service.ParentID>
