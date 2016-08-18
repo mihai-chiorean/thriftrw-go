@@ -30,7 +30,6 @@ import (
 	"strings"
 
 	"github.com/thriftrw/thriftrw-go/compile"
-	"github.com/thriftrw/thriftrw-go/internal/goast"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 )
 
@@ -120,21 +119,6 @@ func Generate(m *compile.Module, o *Options) error {
 
 			fullPath := filepath.Join(o.OutputDir, path)
 			directory := filepath.Dir(fullPath)
-
-			if path[len(path)-3:] == ".go" {
-				var err error
-				// TODO(abg): Need to take all files in this directory into account when
-				// removing unused imports. See how goimports does it:
-				// https://github.com/golang/tools/blob/0e9f43fcb67267967af8c15d7dc54b373e341d20/imports/fix.go#L77
-				//
-				// We should maybe run this transform on ALL Go files after everything
-				// is generated.
-				contents, err = goast.Reformat(nil, fullPath, contents, goast.RemoveUnusedImports)
-				if err != nil {
-					// TODO(abg): Need plugin name and possibly file contents here
-					return fmt.Errorf("failed to reformat %q: %v", path, err)
-				}
-			}
 
 			if err := os.MkdirAll(directory, 0755); err != nil {
 				return fmt.Errorf("could not create directory %q: %v", directory, err)
