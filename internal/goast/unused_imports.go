@@ -55,7 +55,7 @@ func (u unusedImports) Visit(node ast.Node) ast.Visitor {
 			break
 		}
 
-		name := determinePackageName(ipath)
+		name := DeterminePackageName(ipath)
 		u[name] = v
 	case *ast.SelectorExpr: // foo.Bar
 		ident, ok := v.X.(*ast.Ident)
