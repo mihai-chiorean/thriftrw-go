@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 )
 
-// determinePackageName determines the name of the package at the given import
+// DeterminePackageName determines the name of the package at the given import
 // path.
-func determinePackageName(importPath string) string {
+func DeterminePackageName(importPath string) string {
 	// TODO(abg): This can be a lot faster by using build.FindOnly and parsing one
 	// of the .go files in the directory with parser.PackageClauseOnly set. See
 	// how goimports does this:
