@@ -94,14 +94,8 @@ type <.Service.Name> interface {
 const serviceTemplate = `
 package <basename .Service.Package>
 
-<$bytes    := import "bytes">
-<$protocol := import "github.com/thriftrw/thriftrw-go/protocol">
-<$envelope := import "github.com/thriftrw/thriftrw-go/envelope">
 <$wire     := import "github.com/thriftrw/thriftrw-go/wire">
 <$module   := import (index .Request.Modules .Service.ModuleID).Package>
-
-// Protocol is the Thrift protocol used to deserialize and serialize requests.
-var Protocol = <$protocol>.Binary
 
 // Client implements a <.Service.Name> client.
 type client struct {
@@ -110,11 +104,11 @@ type client struct {
 		<$parentModule := index .Request.Modules $parent.ModuleID>
 		<import $parentModule.Package>.<$parent.Name>
 	<end>
-	send func([]byte) ([]byte, error)
+	send func(<$wire>.Envelope) (<$wire>.Envelope, error)
 }
 
 // NewClient builds a new <.Service.Name> client.
-func NewClient(t func([]byte) ([]byte, error)) <$module>.<.Service.Name> {
+func NewClient(t func(<$wire>.Envelope) (<$wire>.Envelope, error)) <$module>.<.Service.Name> {
 	return &client{
 		send: t,
 		<if .Service.ParentID>
@@ -130,25 +124,35 @@ func (c *client) <.Name>(<range .Arguments>
 ) (<if .ReturnType>success <formatType .ReturnType>,<end> err error) {
 	args := <.Name>Helper.Args(<range .Arguments>_<.Name>, <end>)
 
-	var buff <$bytes>.Buffer
-	if err = <$envelope>.Write(Protocol, &buff, 1, args); err != nil {
-		return
-	}
-
-	var resBody []byte
-	resBody, err = c.send(buff.Bytes())
-	if err != nil {
-		return
-	}
-
 	var body <$wire>.Value
-	body, _, err = <$envelope>.ReadReply(Protocol, <$bytes>.NewReader(resBody))
+	body, err = args.ToWire()
 	if err != nil {
+		return
+	}
+
+	var envelope <$wire>.Envelope
+	envelope, err = c.send(<$wire>.Envelope{
+		Name:  "<.ThriftName>",
+		Type:  <$wire>.Call,
+		Value: body,
+	})
+	if err != nil {
+		return
+	}
+
+	<$fmt := import "fmt">
+	switch {
+	case envelope.Type == <$wire>.Exception:
+		// TODO(abg): use envelope exceptions
+		err = <$fmt>.Errorf("envelope error: %v", envelope.Value)
+		return
+	case envelope.Type != <$wire>.Reply:
+		err = <$fmt>.Errorf("unknown envelope type for reply, got %v", envelope.Type)
 		return
 	}
 
 	var result <.Name>Result
-	if err = result.FromWire(body); err != nil {
+	if err = result.FromWire(envelope.Value); err != nil {
 		return
 	}
 
@@ -178,29 +182,9 @@ func NewHandler(service <$module>.<.Service.Name>) Handler {
 	}
 }
 
-// Handle handles the given request and returns a response.
-func (h Handler) Handle(data []byte) ([]byte, error) {
-	envelope, err := Protocol.DecodeEnveloped(<$bytes>.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-
-	responseEnvelope, err := h.HandleEnvelope(envelope)
-	if err != nil {
-		return nil, err
-	}
-
-	var buff <$bytes>.Buffer
-	if err := Protocol.EncodeEnveloped(responseEnvelope, &buff); err != nil {
-		return nil, err
-	}
-
-	return buff.Bytes(), nil
-}
-
-// HandleEnvelope receives an enveloped request for <.Service.Name> service
-// and returns an enveloped response.
-func (h Handler) HandleEnvelope(envelope <$wire>.Envelope) (<$wire>.Envelope, error) {
+// Handle receives an enveloped request for <.Service.Name> service and
+// returns an enveloped response.
+func (h Handler) Handle(envelope <$wire>.Envelope) (<$wire>.Envelope, error) {
 	responseEnvelope := <$wire>.Envelope{
 		Name: envelope.Name,
 		Type: <$wire>.Reply,
@@ -229,7 +213,7 @@ func (h Handler) HandleEnvelope(envelope <$wire>.Envelope) (<$wire>.Envelope, er
 		<end>
 		default:
 			<if .Service.ParentID>
-				return h.parent.HandleEnvelope(envelope)
+				return h.parent.Handle(envelope)
 			<else>
 				// TODO(abg): Use TException
 				return responseEnvelope, <import "fmt">.Errorf("unknown method %q", envelope.Name)

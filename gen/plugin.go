@@ -27,15 +27,19 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/thriftrw/thriftrw-go/internal/envelope"
 	"github.com/thriftrw/thriftrw-go/internal/frame"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 	"github.com/thriftrw/thriftrw-go/plugin/api/service/plugin"
+	"github.com/thriftrw/thriftrw-go/protocol"
 )
 
 const (
 	_pluginExecPrefix = "thriftrw-plugin-"
 	apiVersion        = "1"
 )
+
+var _proto = protocol.Binary
 
 // Plug is the plugin API.
 type Plug interface {
@@ -201,7 +205,7 @@ func (p *Plugin) Open() error {
 		return fmt.Errorf("failed to allocate stdin pipe: %v", err)
 	}
 
-	p.client = plugin.NewClient(frame.NewClient(p.stdin, p.stdout).Send)
+	p.client = plugin.NewClient(envelope.NewClient(_proto, frame.NewClient(p.stdin, p.stdout)).Send)
 
 	if err := p.cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start plugin %q: %v", p.name, err)
