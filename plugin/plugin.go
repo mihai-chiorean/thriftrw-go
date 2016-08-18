@@ -25,6 +25,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/thriftrw/thriftrw-go/internal/envelope"
 	"github.com/thriftrw/thriftrw-go/internal/frame"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 	"github.com/thriftrw/thriftrw-go/plugin/api/service/plugin"
@@ -61,8 +62,13 @@ func Main(p *Plugin) {
 	}
 
 	server := frame.NewServer(os.Stdin, os.Stdout)
-	h := handler{server: server, plugin: p, features: features}
-	if err := server.Serve(plugin.NewHandler(h)); err != nil {
+	pluginHandler := plugin.NewHandler(handler{
+		server:   server,
+		plugin:   p,
+		features: features,
+	})
+
+	if err := server.Serve(envelope.NewServer(_proto, pluginHandler)); err != nil {
 		log.Fatalf("plugin server failed with error: %v", err)
 	}
 }

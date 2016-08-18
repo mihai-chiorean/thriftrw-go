@@ -1,24 +1,18 @@
 package plugin
 
 import (
-	"bytes"
-	"github.com/thriftrw/thriftrw-go/envelope"
-	"github.com/thriftrw/thriftrw-go/wire"
-	"github.com/thriftrw/thriftrw-go/protocol"
-	"github.com/thriftrw/thriftrw-go/plugin/api"
 	"fmt"
+	"github.com/thriftrw/thriftrw-go/plugin/api"
+	"github.com/thriftrw/thriftrw-go/wire"
 )
-
-// Protocol is the Thrift protocol used to deserialize and serialize requests.
-var Protocol = protocol.Binary
 
 // Client implements a Plugin client.
 type client struct {
-	send func([]byte) ([]byte, error)
+	send func(wire.Envelope) (wire.Envelope, error)
 }
 
 // NewClient builds a new Plugin client.
-func NewClient(t func([]byte) ([]byte, error)) api.Plugin {
+func NewClient(t func(wire.Envelope) (wire.Envelope, error)) api.Plugin {
 	return &client{
 		send: t,
 	}
@@ -29,25 +23,34 @@ func (c *client) Generate(
 ) (success *api.GenerateResponse, err error) {
 	args := GenerateHelper.Args(_Request)
 
-	var buff bytes.Buffer
-	if err = envelope.Write(Protocol, &buff, 1, args); err != nil {
-		return
-	}
-
-	var resBody []byte
-	resBody, err = c.send(buff.Bytes())
-	if err != nil {
-		return
-	}
-
 	var body wire.Value
-	body, _, err = envelope.ReadReply(Protocol, bytes.NewReader(resBody))
+	body, err = args.ToWire()
 	if err != nil {
+		return
+	}
+
+	var envelope wire.Envelope
+	envelope, err = c.send(wire.Envelope{
+		Name:  "generate",
+		Type:  wire.Call,
+		Value: body,
+	})
+	if err != nil {
+		return
+	}
+
+	switch {
+	case envelope.Type == wire.Exception:
+		// TODO(abg): use envelope exceptions
+		err = fmt.Errorf("envelope error: %v", envelope.Value)
+		return
+	case envelope.Type != wire.Reply:
+		err = fmt.Errorf("unknown envelope type for reply, got %v", envelope.Type)
 		return
 	}
 
 	var result GenerateResult
-	if err = result.FromWire(body); err != nil {
+	if err = result.FromWire(envelope.Value); err != nil {
 		return
 	}
 
@@ -58,25 +61,34 @@ func (c *client) Generate(
 func (c *client) Goodbye() (err error) {
 	args := GoodbyeHelper.Args()
 
-	var buff bytes.Buffer
-	if err = envelope.Write(Protocol, &buff, 1, args); err != nil {
-		return
-	}
-
-	var resBody []byte
-	resBody, err = c.send(buff.Bytes())
-	if err != nil {
-		return
-	}
-
 	var body wire.Value
-	body, _, err = envelope.ReadReply(Protocol, bytes.NewReader(resBody))
+	body, err = args.ToWire()
 	if err != nil {
+		return
+	}
+
+	var envelope wire.Envelope
+	envelope, err = c.send(wire.Envelope{
+		Name:  "goodbye",
+		Type:  wire.Call,
+		Value: body,
+	})
+	if err != nil {
+		return
+	}
+
+	switch {
+	case envelope.Type == wire.Exception:
+		// TODO(abg): use envelope exceptions
+		err = fmt.Errorf("envelope error: %v", envelope.Value)
+		return
+	case envelope.Type != wire.Reply:
+		err = fmt.Errorf("unknown envelope type for reply, got %v", envelope.Type)
 		return
 	}
 
 	var result GoodbyeResult
-	if err = result.FromWire(body); err != nil {
+	if err = result.FromWire(envelope.Value); err != nil {
 		return
 	}
 
@@ -89,25 +101,34 @@ func (c *client) Handshake(
 ) (success *api.HandshakeResponse, err error) {
 	args := HandshakeHelper.Args(_Request)
 
-	var buff bytes.Buffer
-	if err = envelope.Write(Protocol, &buff, 1, args); err != nil {
-		return
-	}
-
-	var resBody []byte
-	resBody, err = c.send(buff.Bytes())
-	if err != nil {
-		return
-	}
-
 	var body wire.Value
-	body, _, err = envelope.ReadReply(Protocol, bytes.NewReader(resBody))
+	body, err = args.ToWire()
 	if err != nil {
+		return
+	}
+
+	var envelope wire.Envelope
+	envelope, err = c.send(wire.Envelope{
+		Name:  "handshake",
+		Type:  wire.Call,
+		Value: body,
+	})
+	if err != nil {
+		return
+	}
+
+	switch {
+	case envelope.Type == wire.Exception:
+		// TODO(abg): use envelope exceptions
+		err = fmt.Errorf("envelope error: %v", envelope.Value)
+		return
+	case envelope.Type != wire.Reply:
+		err = fmt.Errorf("unknown envelope type for reply, got %v", envelope.Type)
 		return
 	}
 
 	var result HandshakeResult
-	if err = result.FromWire(body); err != nil {
+	if err = result.FromWire(envelope.Value); err != nil {
 		return
 	}
 
@@ -127,29 +148,9 @@ func NewHandler(service api.Plugin) Handler {
 	}
 }
 
-// Handle handles the given request and returns a response.
-func (h Handler) Handle(data []byte) ([]byte, error) {
-	envelope, err := Protocol.DecodeEnveloped(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-
-	responseEnvelope, err := h.HandleEnvelope(envelope)
-	if err != nil {
-		return nil, err
-	}
-
-	var buff bytes.Buffer
-	if err := Protocol.EncodeEnveloped(responseEnvelope, &buff); err != nil {
-		return nil, err
-	}
-
-	return buff.Bytes(), nil
-}
-
-// HandleEnvelope receives an enveloped request for Plugin service
-// and returns an enveloped response.
-func (h Handler) HandleEnvelope(envelope wire.Envelope) (wire.Envelope, error) {
+// Handle receives an enveloped request for Plugin service and
+// returns an enveloped response.
+func (h Handler) Handle(envelope wire.Envelope) (wire.Envelope, error) {
 	responseEnvelope := wire.Envelope{
 		Name:  envelope.Name,
 		Type:  wire.Reply,
