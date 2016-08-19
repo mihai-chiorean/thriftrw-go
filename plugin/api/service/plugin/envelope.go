@@ -5,8 +5,10 @@ package plugin
 
 import (
 	"fmt"
-	"github.com/thriftrw/thriftrw-go/plugin/api"
+	"github.com/thriftrw/thriftrw-go/internal/envelope/exception"
 	"github.com/thriftrw/thriftrw-go/wire"
+	"github.com/thriftrw/thriftrw-go/ptr"
+	"github.com/thriftrw/thriftrw-go/plugin/api"
 )
 
 // Client implements a Plugin client.
@@ -42,8 +44,11 @@ func (c *client) Goodbye() (err error) {
 
 	switch {
 	case envelope.Type == wire.Exception:
-		// TODO(abg): use envelope exceptions
-		err = fmt.Errorf("envelope error: %v", envelope.Value)
+		var exc exception.TApplicationException
+		if err = exc.FromWire(envelope.Value); err != nil {
+			return
+		}
+		err = &exc
 		return
 	case envelope.Type != wire.Reply:
 		err = fmt.Errorf("unknown envelope type for reply, got %v", envelope.Type)
@@ -82,8 +87,11 @@ func (c *client) Handshake(
 
 	switch {
 	case envelope.Type == wire.Exception:
-		// TODO(abg): use envelope exceptions
-		err = fmt.Errorf("envelope error: %v", envelope.Value)
+		var exc exception.TApplicationException
+		if err = exc.FromWire(envelope.Value); err != nil {
+			return
+		}
+		err = &exc
 		return
 	case envelope.Type != wire.Reply:
 		err = fmt.Errorf("unknown envelope type for reply, got %v", envelope.Type)
@@ -113,57 +121,108 @@ func NewHandler(service api.Plugin) Handler {
 
 // Handle receives an enveloped request for Plugin service and
 // returns an enveloped response.
-func (h Handler) Handle(envelope wire.Envelope) (wire.Envelope, error) {
-	responseEnvelope := wire.Envelope{
-		Name:  envelope.Name,
-		Type:  wire.Reply,
-		SeqID: envelope.SeqID,
-	}
+func (h Handler) Handle(envelope wire.Envelope) (response wire.Envelope, err error) {
+	response.Name = envelope.Name
+	response.SeqID = envelope.SeqID
+	response.Type = wire.Reply
 
 	switch envelope.Name {
 
 	case "goodbye":
 		var args GoodbyeArgs
-		if err := args.FromWire(envelope.Value); err != nil {
-			return responseEnvelope, err
+		if err = args.FromWire(envelope.Value); err != nil {
+
+			response.Type = wire.Exception
+			response.Value, err = (&exception.TApplicationException{
+				Message: ptr.String(err.Error()),
+				Type:    excType(exception.ExceptionTypeProtocolError),
+			}).ToWire()
+			return
+
 		}
 
-		result, err := GoodbyeHelper.WrapResponse(
+		var result *GoodbyeResult
+		result, err = GoodbyeHelper.WrapResponse(
 			h.impl.Goodbye(),
 		)
 		if err != nil {
-			return responseEnvelope, err
+
+			response.Type = wire.Exception
+			response.Value, err = (&exception.TApplicationException{
+				Message: ptr.String(err.Error()),
+				Type:    excType(exception.ExceptionTypeInternalError),
+			}).ToWire()
+			return
+
 		}
 
-		responseEnvelope.Value, err = result.ToWire()
+		response.Value, err = result.ToWire()
 		if err != nil {
-			return responseEnvelope, err
+
+			response.Type = wire.Exception
+			response.Value, err = (&exception.TApplicationException{
+				Message: ptr.String(err.Error()),
+				Type:    excType(exception.ExceptionTypeInternalError),
+			}).ToWire()
+			return
+
 		}
 
 	case "handshake":
 		var args HandshakeArgs
-		if err := args.FromWire(envelope.Value); err != nil {
-			return responseEnvelope, err
+		if err = args.FromWire(envelope.Value); err != nil {
+
+			response.Type = wire.Exception
+			response.Value, err = (&exception.TApplicationException{
+				Message: ptr.String(err.Error()),
+				Type:    excType(exception.ExceptionTypeProtocolError),
+			}).ToWire()
+			return
+
 		}
 
-		result, err := HandshakeHelper.WrapResponse(
+		var result *HandshakeResult
+		result, err = HandshakeHelper.WrapResponse(
 			h.impl.Handshake(args.Request),
 		)
 		if err != nil {
-			return responseEnvelope, err
+
+			response.Type = wire.Exception
+			response.Value, err = (&exception.TApplicationException{
+				Message: ptr.String(err.Error()),
+				Type:    excType(exception.ExceptionTypeInternalError),
+			}).ToWire()
+			return
+
 		}
 
-		responseEnvelope.Value, err = result.ToWire()
+		response.Value, err = result.ToWire()
 		if err != nil {
-			return responseEnvelope, err
+
+			response.Type = wire.Exception
+			response.Value, err = (&exception.TApplicationException{
+				Message: ptr.String(err.Error()),
+				Type:    excType(exception.ExceptionTypeInternalError),
+			}).ToWire()
+			return
+
 		}
 
 	default:
 
-		// TODO(abg): Use TException
-		return responseEnvelope, fmt.Errorf("unknown method %q", envelope.Name)
+		err = fmt.Errorf("unknown method %q", envelope.Name)
+
+		response.Type = wire.Exception
+		response.Value, err = (&exception.TApplicationException{
+			Message: ptr.String(err.Error()),
+			Type:    excType(exception.ExceptionTypeUnknownMethod),
+		}).ToWire()
+		return
 
 	}
+	return
+}
 
-	return responseEnvelope, nil
+func excType(x exception.ExceptionType) *exception.ExceptionType {
+	return &x
 }
