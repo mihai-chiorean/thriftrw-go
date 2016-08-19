@@ -100,8 +100,9 @@ const serviceTemplate = `
 
 package <basename .Service.Package>
 
-<$wire     := import "github.com/thriftrw/thriftrw-go/wire">
-<$module   := import (index .Request.Modules .Service.ModuleID).Package>
+<$wire      := import "github.com/thriftrw/thriftrw-go/wire">
+<$module    := import (index .Request.Modules .Service.ModuleID).Package>
+<$exception := import "github.com/thriftrw/thriftrw-go/internal/envelope/exception">
 
 // Client implements a <.Service.Name> client.
 type client struct {
@@ -149,8 +150,11 @@ func (c *client) <.Name>(<range .Arguments>
 	<$fmt := import "fmt">
 	switch {
 	case envelope.Type == <$wire>.Exception:
-		// TODO(abg): use envelope exceptions
-		err = <$fmt>.Errorf("envelope error: %v", envelope.Value)
+		var exc <$exception>.TApplicationException
+		if err = exc.FromWire(envelope.Value); err != nil {
+			return
+		}
+		err = &exc
 		return
 	case envelope.Type != <$wire>.Reply:
 		err = <$fmt>.Errorf("unknown envelope type for reply, got %v", envelope.Type)
@@ -190,42 +194,58 @@ func NewHandler(service <$module>.<.Service.Name>) Handler {
 
 // Handle receives an enveloped request for <.Service.Name> service and
 // returns an enveloped response.
-func (h Handler) Handle(envelope <$wire>.Envelope) (<$wire>.Envelope, error) {
-	responseEnvelope := <$wire>.Envelope{
-		Name: envelope.Name,
-		Type: <$wire>.Reply,
-		SeqID: envelope.SeqID,
-	}
+func (h Handler) Handle(envelope <$wire>.Envelope) (response <$wire>.Envelope, err error) {
+	response.Name = envelope.Name
+	response.SeqID = envelope.SeqID
+	response.Type = <$wire>.Reply
+
+	</* Use this subtemplate to fail and return. */>
+	<define "errFail">
+		</* Sub-templates have their own scope so we need to re-import. */>
+		<$ptr       := import "github.com/thriftrw/thriftrw-go/ptr">
+		<$wire      := import "github.com/thriftrw/thriftrw-go/wire">
+		<$exception := import "github.com/thriftrw/thriftrw-go/internal/envelope/exception">
+		response.Type = <$wire>.Exception
+		response.Value, err = (&<$exception>.TApplicationException{
+			Message: <$ptr>.String(err.Error()),
+			Type: excType(<$exception>.ExceptionType<.>),
+		}).ToWire()
+		return
+	<end>
 
 	switch envelope.Name {
 		<range .Service.Functions>
 			case "<.ThriftName>":
 				var args <.Name>Args
-				if err := args.FromWire(envelope.Value); err != nil {
-					return responseEnvelope, err
+				if err = args.FromWire(envelope.Value); err != nil {
+					<template "errFail" "ProtocolError">
 				}
 
-				result, err := <.Name>Helper.WrapResponse(
+				var result *<.Name>Result
+				result, err = <.Name>Helper.WrapResponse(
 					h.impl.<.Name>(<range .Arguments>args.<.Name>, <end>),
 				)
 				if err != nil {
-					return responseEnvelope, err
+					<template "errFail" "InternalError">
 				}
 
-				responseEnvelope.Value, err = result.ToWire()
+				response.Value, err = result.ToWire()
 				if err != nil {
-					return responseEnvelope, err
+					<template "errFail" "InternalError">
 				}
 		<end>
 		default:
 			<if .Service.ParentID>
 				return h.parent.Handle(envelope)
 			<else>
-				// TODO(abg): Use TException
-				return responseEnvelope, <import "fmt">.Errorf("unknown method %q", envelope.Name)
+				err = <import "fmt">.Errorf("unknown method %q", envelope.Name)
+				<template "errFail" "UnknownMethod">
 			<end>
 	}
+	return
+}
 
-	return responseEnvelope, nil
+func excType(x <$exception>.ExceptionType) *<$exception>.ExceptionType {
+	return &x
 }
 `
