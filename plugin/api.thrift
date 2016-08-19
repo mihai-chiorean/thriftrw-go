@@ -26,6 +26,9 @@ struct TypePair {
     2: required Type right
 }
 
+/**
+ * Type is a reference to a Go type.
+ */
 union Type {
     1: SimpleType simpleType
     /**
@@ -36,6 +39,9 @@ union Type {
      * []struct{Key $left, Value $right}
      */
     3: TypePair keyValueSliceType
+    /**
+     * map[$left]$right
+     */
     4: TypePair mapType
     5: TypeReference referenceType
     /**
@@ -153,6 +159,8 @@ service Plugin {
      */
     void goodbye()
 }
+
+//////////////////////////////////////////////////////////////////////////////
 
 struct GenerateServiceRequest {
     /**
