@@ -110,18 +110,14 @@ func main() {
 		}
 	}
 
-	pluginNames := strings.Split(pluginsStr, ",")
-	plugins := make([]gen.Plug, 0, len(pluginNames))
-	for _, name := range pluginNames {
-		if len(name) == 0 {
-			continue
-		}
-
-		p, err := gen.NewPlugin(name)
+	pluginNames := filterEmpty(strings.Split(pluginsStr, ","))
+	var plugin gen.Plugin
+	if len(pluginNames) > 0 {
+		plugin, err = gen.NewMultiPlugin(pluginNames)
 		if err != nil {
 			log.Fatal(err)
 		}
-		plugins = append(plugins, p)
+		defer plugin.Close()
 	}
 
 	opts := gen.Options{
@@ -129,7 +125,7 @@ func main() {
 		PackagePrefix: packagePrefix,
 		ThriftRoot:    thriftRoot,
 		NoRecurse:     noRecurse,
-		Plugins:       plugins,
+		Plugin:        plugin,
 	}
 
 	if err := gen.Generate(module, &opts); err != nil {
@@ -234,4 +230,14 @@ func determinePackagePrefix(dir string) (string, error) {
 	}
 
 	return "", fmt.Errorf("directory %q is not inside $GOPATH/src", dir)
+}
+
+func filterEmpty(s []string) []string {
+	o := s[:0] // filtering without allocs
+	for _, x := range s {
+		if x != "" {
+			o = append(o, x)
+		}
+	}
+	return o
 }
