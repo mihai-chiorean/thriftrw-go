@@ -55,8 +55,8 @@ type Options struct {
 	// files as well. If true, code gets generated only for the first module.
 	NoRecurse bool
 
-	// List of plugins
-	Plugins []Plug
+	// Code generation plugin
+	Plugin Plugin
 }
 
 // Generate generates code based on the given options.
@@ -94,29 +94,18 @@ func Generate(m *compile.Module, o *Options) error {
 		}
 	}
 
-	if len(o.Plugins) > 0 {
-		plug := multiPlug(o.Plugins)
-		if err := plug.Open(); err != nil {
-			return err
-		}
-		defer plug.Close()
-
+	if o.Plugin != nil {
 		req, err := buildGenerateRequest(importer, m)
 		if err != nil {
 			return err
 		}
 
-		res, err := plug.ServiceGenerator().Generate(req)
+		res, err := o.Plugin.ServiceGenerator().Generate(req)
 		if err != nil {
 			return err
 		}
 
 		for path, contents := range res.Files {
-			if strings.Contains(path, "..") {
-				// TODO(abg): not the place to do this
-				return fmt.Errorf("a plugin is trying to access a parent directory: %v", path)
-			}
-
 			fullPath := filepath.Join(o.OutputDir, path)
 			directory := filepath.Dir(fullPath)
 
