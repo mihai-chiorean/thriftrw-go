@@ -4,22 +4,20 @@
 package servicegenerator
 
 import (
-	"fmt"
-	"github.com/thriftrw/thriftrw-go/internal/envelope/exception"
+	"github.com/thriftrw/thriftrw-go/internal/envelope"
 	"github.com/thriftrw/thriftrw-go/wire"
-	"github.com/thriftrw/thriftrw-go/ptr"
 	"github.com/thriftrw/thriftrw-go/plugin/api"
 )
 
 // Client implements a ServiceGenerator client.
 type client struct {
-	send func(wire.Envelope) (wire.Envelope, error)
+	client envelope.Client
 }
 
 // NewClient builds a new ServiceGenerator client.
-func NewClient(t func(wire.Envelope) (wire.Envelope, error)) api.ServiceGenerator {
+func NewClient(c envelope.Client) api.ServiceGenerator {
 	return &client{
-		send: t,
+		client: c,
 	}
 }
 
@@ -34,31 +32,13 @@ func (c *client) Generate(
 		return
 	}
 
-	var envelope wire.Envelope
-	envelope, err = c.send(wire.Envelope{
-		Name:  "generate",
-		Type:  wire.Call,
-		Value: body,
-	})
+	body, err = c.client.Send("generate", body)
 	if err != nil {
 		return
 	}
 
-	switch {
-	case envelope.Type == wire.Exception:
-		var exc exception.TApplicationException
-		if err = exc.FromWire(envelope.Value); err != nil {
-			return
-		}
-		err = &exc
-		return
-	case envelope.Type != wire.Reply:
-		err = fmt.Errorf("unknown envelope type for reply, got %v", envelope.Type)
-		return
-	}
-
 	var result GenerateResult
-	if err = result.FromWire(envelope.Value); err != nil {
+	if err = result.FromWire(body); err != nil {
 		return
 	}
 
@@ -78,70 +58,28 @@ func NewHandler(service api.ServiceGenerator) Handler {
 	}
 }
 
-// Handle receives an enveloped request for ServiceGenerator service and
-// returns an enveloped response.
-func (h Handler) Handle(envelope wire.Envelope) (response wire.Envelope, err error) {
-	response.Name = envelope.Name
-	response.SeqID = envelope.SeqID
-	response.Type = wire.Reply
-
-	switch envelope.Name {
+// Handle receives and handles a request for the ServiceGenerator service.
+func (h Handler) Handle(name string, reqValue wire.Value) (wire.Value, error) {
+	switch name {
 
 	case "generate":
 		var args GenerateArgs
-		if err = args.FromWire(envelope.Value); err != nil {
-
-			response.Type = wire.Exception
-			response.Value, err = (&exception.TApplicationException{
-				Message: ptr.String(err.Error()),
-				Type:    excType(exception.ExceptionTypeProtocolError),
-			}).ToWire()
-			return
-
+		if err := args.FromWire(reqValue); err != nil {
+			return wire.Value{}, err
 		}
 
-		var result *GenerateResult
-		result, err = GenerateHelper.WrapResponse(
+		result, err := GenerateHelper.WrapResponse(
 			h.impl.Generate(args.Request),
 		)
 		if err != nil {
-
-			response.Type = wire.Exception
-			response.Value, err = (&exception.TApplicationException{
-				Message: ptr.String(err.Error()),
-				Type:    excType(exception.ExceptionTypeInternalError),
-			}).ToWire()
-			return
-
+			return wire.Value{}, nil
 		}
 
-		response.Value, err = result.ToWire()
-		if err != nil {
-
-			response.Type = wire.Exception
-			response.Value, err = (&exception.TApplicationException{
-				Message: ptr.String(err.Error()),
-				Type:    excType(exception.ExceptionTypeInternalError),
-			}).ToWire()
-			return
-
-		}
+		return result.ToWire()
 
 	default:
 
-		err = fmt.Errorf("unknown method %q", envelope.Name)
-
-		response.Type = wire.Exception
-		response.Value, err = (&exception.TApplicationException{
-			Message: ptr.String(err.Error()),
-			Type:    excType(exception.ExceptionTypeUnknownMethod),
-		}).ToWire()
-		return
+		return wire.Value{}, envelope.ErrUnknownMethod(name)
 
 	}
-	return
-}
-
-func excType(x exception.ExceptionType) *exception.ExceptionType {
-	return &x
 }

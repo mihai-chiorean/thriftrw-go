@@ -192,7 +192,7 @@ func NewPlugin(name string) (Plugin, error) {
 	}
 
 	pluginClient := plugin.NewClient(
-		multiplex.NewClient("Plugin", envelope.NewClient(_proto, transport)).Send,
+		multiplex.NewClient("Plugin", envelope.NewClient(_proto, transport)),
 	)
 
 	response, err := pluginClient.Handshake(&api.HandshakeRequest{})
@@ -244,10 +244,7 @@ func (p *processPlugin) ServiceGenerator() api.ServiceGenerator {
 	// making ServiceGenerator calls. We should probably wrap it to check.
 
 	return servicegenerator.NewClient(
-		multiplex.NewClient(
-			"ServiceGenerator",
-			envelope.NewClient(_proto, p.transport),
-		).Send,
+		multiplex.NewClient("ServiceGenerator", envelope.NewClient(_proto, p.transport)),
 	)
 }
 
