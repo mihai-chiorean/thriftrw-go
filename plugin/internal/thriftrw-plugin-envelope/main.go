@@ -102,7 +102,7 @@ package <basename .Service.Package>
 
 <$wire      := import "github.com/thriftrw/thriftrw-go/wire">
 <$module    := import (index .Request.Modules .Service.ModuleID).Package>
-<$exception := import "github.com/thriftrw/thriftrw-go/internal/envelope/exception">
+<$envelope  := import "github.com/thriftrw/thriftrw-go/internal/envelope">
 
 // Client implements a <.Service.Name> client.
 type client struct {
@@ -111,13 +111,13 @@ type client struct {
 		<$parentModule := index .Request.Modules $parent.ModuleID>
 		<import $parentModule.Package>.<$parent.Name>
 	<end>
-	send func(<$wire>.Envelope) (<$wire>.Envelope, error)
+	client <$envelope>.Client
 }
 
 // NewClient builds a new <.Service.Name> client.
-func NewClient(t func(<$wire>.Envelope) (<$wire>.Envelope, error)) <$module>.<.Service.Name> {
+func NewClient(c <$envelope>.Client) <$module>.<.Service.Name> {
 	return &client{
-		send: t,
+		client: c,
 		<if .Service.ParentID>
 			<$parent := getService .Request .Service.ParentID>
 			<$parent.Name>: <import $parent.Package>.NewClient(t),
@@ -137,32 +137,13 @@ func (c *client) <.Name>(<range .Arguments>
 		return
 	}
 
-	var envelope <$wire>.Envelope
-	envelope, err = c.send(<$wire>.Envelope{
-		Name:  "<.ThriftName>",
-		Type:  <$wire>.Call,
-		Value: body,
-	})
+	body, err = c.client.Send("<.ThriftName>", body)
 	if err != nil {
 		return
 	}
 
-	<$fmt := import "fmt">
-	switch {
-	case envelope.Type == <$wire>.Exception:
-		var exc <$exception>.TApplicationException
-		if err = exc.FromWire(envelope.Value); err != nil {
-			return
-		}
-		err = &exc
-		return
-	case envelope.Type != <$wire>.Reply:
-		err = <$fmt>.Errorf("unknown envelope type for reply, got %v", envelope.Type)
-		return
-	}
-
 	var result <.Name>Result
-	if err = result.FromWire(envelope.Value); err != nil {
+	if err = result.FromWire(body); err != nil {
 		return
 	}
 
@@ -192,60 +173,31 @@ func NewHandler(service <$module>.<.Service.Name>) Handler {
 	}
 }
 
-// Handle receives an enveloped request for <.Service.Name> service and
-// returns an enveloped response.
-func (h Handler) Handle(envelope <$wire>.Envelope) (response <$wire>.Envelope, err error) {
-	response.Name = envelope.Name
-	response.SeqID = envelope.SeqID
-	response.Type = <$wire>.Reply
-
-	</* Use this subtemplate to fail and return. */>
-	<define "errFail">
-		</* Sub-templates have their own scope so we need to re-import. */>
-		<$ptr       := import "github.com/thriftrw/thriftrw-go/ptr">
-		<$wire      := import "github.com/thriftrw/thriftrw-go/wire">
-		<$exception := import "github.com/thriftrw/thriftrw-go/internal/envelope/exception">
-		response.Type = <$wire>.Exception
-		response.Value, err = (&<$exception>.TApplicationException{
-			Message: <$ptr>.String(err.Error()),
-			Type: excType(<$exception>.ExceptionType<.>),
-		}).ToWire()
-		return
-	<end>
-
-	switch envelope.Name {
+// Handle receives and handles a request for the <.Service.Name> service.
+func (h Handler) Handle(name string, reqValue <$wire>.Value) (<$wire>.Value, error) {
+	switch name {
 		<range .Service.Functions>
 			case "<.ThriftName>":
 				var args <.Name>Args
-				if err = args.FromWire(envelope.Value); err != nil {
-					<template "errFail" "ProtocolError">
+				if err := args.FromWire(reqValue); err != nil {
+					return <$wire>.Value{}, err
 				}
 
-				var result *<.Name>Result
-				result, err = <.Name>Helper.WrapResponse(
+				result, err := <.Name>Helper.WrapResponse(
 					h.impl.<.Name>(<range .Arguments>args.<.Name>, <end>),
 				)
 				if err != nil {
-					<template "errFail" "InternalError">
+					return <$wire>.Value{}, nil
 				}
 
-				response.Value, err = result.ToWire()
-				if err != nil {
-					<template "errFail" "InternalError">
-				}
+				return result.ToWire()
 		<end>
 		default:
 			<if .Service.ParentID>
-				return h.parent.Handle(envelope)
+				return h.parent.Handle(name, reqValue)
 			<else>
-				err = <import "fmt">.Errorf("unknown method %q", envelope.Name)
-				<template "errFail" "UnknownMethod">
+				return <$wire>.Value{}, <$envelope>.ErrUnknownMethod(name)
 			<end>
 	}
-	return
-}
-
-func excType(x <$exception>.ExceptionType) *<$exception>.ExceptionType {
-	return &x
 }
 `
