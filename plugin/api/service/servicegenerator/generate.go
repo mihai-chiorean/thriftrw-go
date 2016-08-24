@@ -94,13 +94,12 @@ func (v *GenerateArgs) EnvelopeType() wire.EnvelopeType {
 }
 
 type GenerateResult struct {
-	Success        *api.GenerateServiceResponse `json:"success,omitempty"`
-	GeneratorError *api.ServiceGeneratorError   `json:"generatorError,omitempty"`
+	Success *api.GenerateServiceResponse `json:"success,omitempty"`
 }
 
 func (v *GenerateResult) ToWire() (wire.Value, error) {
 	var (
-		fields [2]wire.Field
+		fields [1]wire.Field
 		i      int = 0
 		w      wire.Value
 		err    error
@@ -113,14 +112,6 @@ func (v *GenerateResult) ToWire() (wire.Value, error) {
 		fields[i] = wire.Field{ID: 0, Value: w}
 		i++
 	}
-	if v.GeneratorError != nil {
-		w, err = v.GeneratorError.ToWire()
-		if err != nil {
-			return w, err
-		}
-		fields[i] = wire.Field{ID: 1, Value: w}
-		i++
-	}
 	if i != 1 {
 		return wire.Value{}, fmt.Errorf("GenerateResult should have exactly one field: got %v fields", i)
 	}
@@ -129,12 +120,6 @@ func (v *GenerateResult) ToWire() (wire.Value, error) {
 
 func _GenerateServiceResponse_Read(w wire.Value) (*api.GenerateServiceResponse, error) {
 	var v api.GenerateServiceResponse
-	err := v.FromWire(w)
-	return &v, err
-}
-
-func _ServiceGeneratorError_Read(w wire.Value) (*api.ServiceGeneratorError, error) {
-	var v api.ServiceGeneratorError
 	err := v.FromWire(w)
 	return &v, err
 }
@@ -150,20 +135,10 @@ func (v *GenerateResult) FromWire(w wire.Value) error {
 					return err
 				}
 			}
-		case 1:
-			if field.Value.Type() == wire.TStruct {
-				v.GeneratorError, err = _ServiceGeneratorError_Read(field.Value)
-				if err != nil {
-					return err
-				}
-			}
 		}
 	}
 	count := 0
 	if v.Success != nil {
-		count++
-	}
-	if v.GeneratorError != nil {
 		count++
 	}
 	if count != 1 {
@@ -173,14 +148,10 @@ func (v *GenerateResult) FromWire(w wire.Value) error {
 }
 
 func (v *GenerateResult) String() string {
-	var fields [2]string
+	var fields [1]string
 	i := 0
 	if v.Success != nil {
 		fields[i] = fmt.Sprintf("Success: %v", v.Success)
-		i++
-	}
-	if v.GeneratorError != nil {
-		fields[i] = fmt.Sprintf("GeneratorError: %v", v.GeneratorError)
 		i++
 	}
 	return fmt.Sprintf("GenerateResult{%v}", strings.Join(fields[:i], ", "))
@@ -204,8 +175,6 @@ var GenerateHelper = struct {
 func init() {
 	GenerateHelper.IsException = func(err error) bool {
 		switch err.(type) {
-		case *api.ServiceGeneratorError:
-			return true
 		default:
 			return false
 		}
@@ -217,20 +186,9 @@ func init() {
 		if err == nil {
 			return &GenerateResult{Success: success}, nil
 		}
-		switch e := err.(type) {
-		case *api.ServiceGeneratorError:
-			if e == nil {
-				return nil, errors.New("WrapResponse received non-nil error type with nil value for GenerateResult.GeneratorError")
-			}
-			return &GenerateResult{GeneratorError: e}, nil
-		}
 		return nil, err
 	}
 	GenerateHelper.UnwrapResponse = func(result *GenerateResult) (success *api.GenerateServiceResponse, err error) {
-		if result.GeneratorError != nil {
-			err = result.GeneratorError
-			return
-		}
 		if result.Success != nil {
 			success = result.Success
 			return

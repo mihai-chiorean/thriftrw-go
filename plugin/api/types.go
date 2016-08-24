@@ -710,60 +710,6 @@ func (v *GenerateServiceResponse) String() string {
 	return fmt.Sprintf("GenerateServiceResponse{%v}", strings.Join(fields[:i], ", "))
 }
 
-type HandshakeError struct {
-	Message *string `json:"message,omitempty"`
-}
-
-func (v *HandshakeError) ToWire() (wire.Value, error) {
-	var (
-		fields [1]wire.Field
-		i      int = 0
-		w      wire.Value
-		err    error
-	)
-	if v.Message != nil {
-		w, err = wire.NewValueString(*(v.Message)), error(nil)
-		if err != nil {
-			return w, err
-		}
-		fields[i] = wire.Field{ID: 1, Value: w}
-		i++
-	}
-	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
-}
-
-func (v *HandshakeError) FromWire(w wire.Value) error {
-	var err error
-	for _, field := range w.GetStruct().Fields {
-		switch field.ID {
-		case 1:
-			if field.Value.Type() == wire.TBinary {
-				var x string
-				x, err = field.Value.GetString(), error(nil)
-				v.Message = &x
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (v *HandshakeError) String() string {
-	var fields [1]string
-	i := 0
-	if v.Message != nil {
-		fields[i] = fmt.Sprintf("Message: %v", *(v.Message))
-		i++
-	}
-	return fmt.Sprintf("HandshakeError{%v}", strings.Join(fields[:i], ", "))
-}
-
-func (v *HandshakeError) Error() string {
-	return v.String()
-}
-
 type HandshakeRequest struct{}
 
 func (v *HandshakeRequest) ToWire() (wire.Value, error) {
@@ -790,7 +736,7 @@ func (v *HandshakeRequest) String() string {
 
 type HandshakeResponse struct {
 	Name       string    `json:"name"`
-	ApiVersion string    `json:"apiVersion"`
+	ApiVersion int32     `json:"apiVersion"`
 	Features   []Feature `json:"features"`
 }
 
@@ -834,7 +780,7 @@ func (v *HandshakeResponse) ToWire() (wire.Value, error) {
 	}
 	fields[i] = wire.Field{ID: 1, Value: w}
 	i++
-	w, err = wire.NewValueString(v.ApiVersion), error(nil)
+	w, err = wire.NewValueI32(v.ApiVersion), error(nil)
 	if err != nil {
 		return w, err
 	}
@@ -891,8 +837,8 @@ func (v *HandshakeResponse) FromWire(w wire.Value) error {
 				nameIsSet = true
 			}
 		case 2:
-			if field.Value.Type() == wire.TBinary {
-				v.ApiVersion, err = field.Value.GetString(), error(nil)
+			if field.Value.Type() == wire.TI32 {
+				v.ApiVersion, err = field.Value.GetI32(), error(nil)
 				if err != nil {
 					return err
 				}
@@ -1226,60 +1172,6 @@ func (v *Service) String() string {
 	fields[i] = fmt.Sprintf("ModuleID: %v", v.ModuleID)
 	i++
 	return fmt.Sprintf("Service{%v}", strings.Join(fields[:i], ", "))
-}
-
-type ServiceGeneratorError struct {
-	Message *string `json:"message,omitempty"`
-}
-
-func (v *ServiceGeneratorError) ToWire() (wire.Value, error) {
-	var (
-		fields [1]wire.Field
-		i      int = 0
-		w      wire.Value
-		err    error
-	)
-	if v.Message != nil {
-		w, err = wire.NewValueString(*(v.Message)), error(nil)
-		if err != nil {
-			return w, err
-		}
-		fields[i] = wire.Field{ID: 1, Value: w}
-		i++
-	}
-	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
-}
-
-func (v *ServiceGeneratorError) FromWire(w wire.Value) error {
-	var err error
-	for _, field := range w.GetStruct().Fields {
-		switch field.ID {
-		case 1:
-			if field.Value.Type() == wire.TBinary {
-				var x string
-				x, err = field.Value.GetString(), error(nil)
-				v.Message = &x
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (v *ServiceGeneratorError) String() string {
-	var fields [1]string
-	i := 0
-	if v.Message != nil {
-		fields[i] = fmt.Sprintf("Message: %v", *(v.Message))
-		i++
-	}
-	return fmt.Sprintf("ServiceGeneratorError{%v}", strings.Join(fields[:i], ", "))
-}
-
-func (v *ServiceGeneratorError) Error() string {
-	return v.String()
 }
 
 type ServiceID int32
@@ -1685,58 +1577,4 @@ func (v *TypeReference) String() string {
 	fields[i] = fmt.Sprintf("Package: %v", v.Package)
 	i++
 	return fmt.Sprintf("TypeReference{%v}", strings.Join(fields[:i], ", "))
-}
-
-type UnsupportedVersionError struct {
-	Message *string `json:"message,omitempty"`
-}
-
-func (v *UnsupportedVersionError) ToWire() (wire.Value, error) {
-	var (
-		fields [1]wire.Field
-		i      int = 0
-		w      wire.Value
-		err    error
-	)
-	if v.Message != nil {
-		w, err = wire.NewValueString(*(v.Message)), error(nil)
-		if err != nil {
-			return w, err
-		}
-		fields[i] = wire.Field{ID: 1, Value: w}
-		i++
-	}
-	return wire.NewValueStruct(wire.Struct{Fields: fields[:i]}), nil
-}
-
-func (v *UnsupportedVersionError) FromWire(w wire.Value) error {
-	var err error
-	for _, field := range w.GetStruct().Fields {
-		switch field.ID {
-		case 1:
-			if field.Value.Type() == wire.TBinary {
-				var x string
-				x, err = field.Value.GetString(), error(nil)
-				v.Message = &x
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (v *UnsupportedVersionError) String() string {
-	var fields [1]string
-	i := 0
-	if v.Message != nil {
-		fields[i] = fmt.Sprintf("Message: %v", *(v.Message))
-		i++
-	}
-	return fmt.Sprintf("UnsupportedVersionError{%v}", strings.Join(fields[:i], ", "))
-}
-
-func (v *UnsupportedVersionError) Error() string {
-	return v.String()
 }

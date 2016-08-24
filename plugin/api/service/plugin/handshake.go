@@ -94,14 +94,12 @@ func (v *HandshakeArgs) EnvelopeType() wire.EnvelopeType {
 }
 
 type HandshakeResult struct {
-	Success                 *api.HandshakeResponse       `json:"success,omitempty"`
-	UnsupportedVersionError *api.UnsupportedVersionError `json:"unsupportedVersionError,omitempty"`
-	HandshakeError          *api.HandshakeError          `json:"handshakeError,omitempty"`
+	Success *api.HandshakeResponse `json:"success,omitempty"`
 }
 
 func (v *HandshakeResult) ToWire() (wire.Value, error) {
 	var (
-		fields [3]wire.Field
+		fields [1]wire.Field
 		i      int = 0
 		w      wire.Value
 		err    error
@@ -114,22 +112,6 @@ func (v *HandshakeResult) ToWire() (wire.Value, error) {
 		fields[i] = wire.Field{ID: 0, Value: w}
 		i++
 	}
-	if v.UnsupportedVersionError != nil {
-		w, err = v.UnsupportedVersionError.ToWire()
-		if err != nil {
-			return w, err
-		}
-		fields[i] = wire.Field{ID: 1, Value: w}
-		i++
-	}
-	if v.HandshakeError != nil {
-		w, err = v.HandshakeError.ToWire()
-		if err != nil {
-			return w, err
-		}
-		fields[i] = wire.Field{ID: 2, Value: w}
-		i++
-	}
 	if i != 1 {
 		return wire.Value{}, fmt.Errorf("HandshakeResult should have exactly one field: got %v fields", i)
 	}
@@ -138,18 +120,6 @@ func (v *HandshakeResult) ToWire() (wire.Value, error) {
 
 func _HandshakeResponse_Read(w wire.Value) (*api.HandshakeResponse, error) {
 	var v api.HandshakeResponse
-	err := v.FromWire(w)
-	return &v, err
-}
-
-func _UnsupportedVersionError_Read(w wire.Value) (*api.UnsupportedVersionError, error) {
-	var v api.UnsupportedVersionError
-	err := v.FromWire(w)
-	return &v, err
-}
-
-func _HandshakeError_Read(w wire.Value) (*api.HandshakeError, error) {
-	var v api.HandshakeError
 	err := v.FromWire(w)
 	return &v, err
 }
@@ -165,30 +135,10 @@ func (v *HandshakeResult) FromWire(w wire.Value) error {
 					return err
 				}
 			}
-		case 1:
-			if field.Value.Type() == wire.TStruct {
-				v.UnsupportedVersionError, err = _UnsupportedVersionError_Read(field.Value)
-				if err != nil {
-					return err
-				}
-			}
-		case 2:
-			if field.Value.Type() == wire.TStruct {
-				v.HandshakeError, err = _HandshakeError_Read(field.Value)
-				if err != nil {
-					return err
-				}
-			}
 		}
 	}
 	count := 0
 	if v.Success != nil {
-		count++
-	}
-	if v.UnsupportedVersionError != nil {
-		count++
-	}
-	if v.HandshakeError != nil {
 		count++
 	}
 	if count != 1 {
@@ -198,18 +148,10 @@ func (v *HandshakeResult) FromWire(w wire.Value) error {
 }
 
 func (v *HandshakeResult) String() string {
-	var fields [3]string
+	var fields [1]string
 	i := 0
 	if v.Success != nil {
 		fields[i] = fmt.Sprintf("Success: %v", v.Success)
-		i++
-	}
-	if v.UnsupportedVersionError != nil {
-		fields[i] = fmt.Sprintf("UnsupportedVersionError: %v", v.UnsupportedVersionError)
-		i++
-	}
-	if v.HandshakeError != nil {
-		fields[i] = fmt.Sprintf("HandshakeError: %v", v.HandshakeError)
 		i++
 	}
 	return fmt.Sprintf("HandshakeResult{%v}", strings.Join(fields[:i], ", "))
@@ -233,10 +175,6 @@ var HandshakeHelper = struct {
 func init() {
 	HandshakeHelper.IsException = func(err error) bool {
 		switch err.(type) {
-		case *api.UnsupportedVersionError:
-			return true
-		case *api.HandshakeError:
-			return true
 		default:
 			return false
 		}
@@ -248,29 +186,9 @@ func init() {
 		if err == nil {
 			return &HandshakeResult{Success: success}, nil
 		}
-		switch e := err.(type) {
-		case *api.UnsupportedVersionError:
-			if e == nil {
-				return nil, errors.New("WrapResponse received non-nil error type with nil value for HandshakeResult.UnsupportedVersionError")
-			}
-			return &HandshakeResult{UnsupportedVersionError: e}, nil
-		case *api.HandshakeError:
-			if e == nil {
-				return nil, errors.New("WrapResponse received non-nil error type with nil value for HandshakeResult.HandshakeError")
-			}
-			return &HandshakeResult{HandshakeError: e}, nil
-		}
 		return nil, err
 	}
 	HandshakeHelper.UnwrapResponse = func(result *HandshakeResult) (success *api.HandshakeResponse, err error) {
-		if result.UnsupportedVersionError != nil {
-			err = result.UnsupportedVersionError
-			return
-		}
-		if result.HandshakeError != nil {
-			err = result.HandshakeError
-			return
-		}
 		if result.Success != nil {
 			success = result.Success
 			return

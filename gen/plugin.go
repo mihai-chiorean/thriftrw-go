@@ -40,7 +40,6 @@ import (
 
 const (
 	_pluginExecPrefix = "thriftrw-plugin-"
-	apiVersion        = "1"
 )
 
 var _proto = protocol.Binary
@@ -206,9 +205,9 @@ func NewPlugin(name string) (Plugin, error) {
 			name, response.Name)
 	}
 
-	if response.ApiVersion != apiVersion {
+	if response.ApiVersion != api.Version {
 		return nil, fmt.Errorf(
-			"failed to handshake with plugin %q: got incorrect API version %q",
+			"failed to handshake with plugin %q: got incorrect API version %v",
 			name, response.ApiVersion)
 	}
 
