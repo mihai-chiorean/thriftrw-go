@@ -18,13 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-// Package plugin defines the plugin API for writing thriftrw plugins.
+// Package plugin provides the API for writing ThriftRW plugins.
 //
-// Plugins take the form of an executable which runs the Main function.
+// Plugins are standalone programs with names in the format
+// thriftrw-plugin-$name where $name is the name of the plugin.
+//
+// 	// thriftrw-plugin-myfanceplugin/main.go
+// 	package main
+//
+// 	import "github.com/thriftrw/thriftrw-go/plugin"
 //
 // 	func main() {
-// 		plugin.Main(plugin.Plugin{
+// 		plugin.Main(&plugin.Plugin{
+// 			Name: "myfancyplugin",
 // 			// ...
 // 		})
 // 	}
+//
+// Note that the name in the executable MUST match the name in the Plugin
+// struct.
 package plugin

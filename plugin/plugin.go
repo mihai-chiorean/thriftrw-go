@@ -37,21 +37,24 @@ const _fastPathFrameSize = 10 * 1024 * 1024 // 10 MB
 
 var _proto = protocol.Binary
 
-// Plugin defines a plugin.
+// Plugin defines a ThriftRW plugin.
 type Plugin struct {
+	// Name of the plugin. The name of the executable providing this plugin MUST
+	// BE thriftrw-plugin-$name.
 	Name string
 
-	// Implement this to generate arbitrary code for services.
+	// If non-nil, this indicates that the plugin will generate code for Thrift
+	// services.
 	ServiceGenerator api.ServiceGenerator
 }
 
 // Main serves the given plugin. It is the entry point to the plugin system.
-// User-defined plugins should call Main with their Plugin definition.
+// User-defined plugins should call Main with their main function.
 func Main(p *Plugin) {
 	// The plugin communicates with the ThriftRW process over stdout and stdin
 	// of this process. Requests and responses are Thrift envelopes with a
 	// 4-byte big-endian encoded length prefix. Envelope names contain method
-	// names prefixed with the service name and a ":"
+	// names prefixed with the service name and a ":".
 
 	mainHandler := multiplex.NewHandler()
 
