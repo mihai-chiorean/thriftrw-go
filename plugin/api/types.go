@@ -144,7 +144,10 @@ type Function struct {
 type _List_Argument_ValueList []*Argument
 
 func (v _List_Argument_ValueList) ForEach(f func(wire.Value) error) error {
-	for _, x := range v {
+	for i, x := range v {
+		if x == nil {
+			return fmt.Errorf("invalid [%v]: value is nil", i)
+		}
 		w, err := x.ToWire()
 		if err != nil {
 			return err
@@ -354,6 +357,9 @@ type _Map_ServiceID_Service_MapItemList map[ServiceID]*Service
 
 func (m _Map_ServiceID_Service_MapItemList) ForEach(f func(wire.MapItem) error) error {
 	for k, v := range m {
+		if v == nil {
+			return fmt.Errorf("invalid [%v]: value is nil", k)
+		}
 		kw, err := k.ToWire()
 		if err != nil {
 			return err
@@ -389,6 +395,9 @@ type _Map_ModuleID_Module_MapItemList map[ModuleID]*Module
 
 func (m _Map_ModuleID_Module_MapItemList) ForEach(f func(wire.MapItem) error) error {
 	for k, v := range m {
+		if v == nil {
+			return fmt.Errorf("invalid [%v]: value is nil", k)
+		}
 		kw, err := k.ToWire()
 		if err != nil {
 			return err
@@ -611,6 +620,9 @@ type _Map_String_Binary_MapItemList map[string][]byte
 
 func (m _Map_String_Binary_MapItemList) ForEach(f func(wire.MapItem) error) error {
 	for k, v := range m {
+		if v == nil {
+			return fmt.Errorf("invalid [%v]: value is nil", k)
+		}
 		kw, err := wire.NewValueString(k), error(nil)
 		if err != nil {
 			return err
@@ -978,7 +990,10 @@ type Service struct {
 type _List_Function_ValueList []*Function
 
 func (v _List_Function_ValueList) ForEach(f func(wire.Value) error) error {
-	for _, x := range v {
+	for i, x := range v {
+		if x == nil {
+			return fmt.Errorf("invalid [%v]: value is nil", i)
+		}
 		w, err := x.ToWire()
 		if err != nil {
 			return err
